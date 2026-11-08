@@ -1,0 +1,56 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: chronos-mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - chronos
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chronos-backend:dev
+    container_name: chronos-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - chronos
+    depends_on:
+      - mongo
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: chronos-frontend:dev
+    container_name: chronos-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - chronos
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+
+networks:
+  chronos:
+    driver: bridge
