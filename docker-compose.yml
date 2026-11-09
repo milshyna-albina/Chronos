@@ -13,40 +13,40 @@ services:
     networks:
       - chronos
 
-  backend:
+  api:
     build:
-      context: ./backend
+      context: ./API
       dockerfile: Dockerfile
-    image: chronos-backend:dev
-    container_name: chronos-backend
+    image: chronos-api:dev
+    container_name: chronos-api
     restart: unless-stopped
-    env_file: ./backend/.env
+    env_file: ./API/.env
     ports:
       - "5001:5001"
     volumes:
-      - ./backend:/app
+      - ./API:/app
       - /app/node_modules
     networks:
       - chronos
     depends_on:
       - mongo
 
-  frontend:
+  client:
     build:
-      context: ./frontend
+      context: ./client
       dockerfile: Dockerfile
-    image: chronos-frontend:dev
-    container_name: chronos-frontend
+    image: chronos-client:dev
+    container_name: chronos-client
     restart: unless-stopped
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - ./client:/app
       - /app/node_modules
     networks:
       - chronos
     depends_on:
-      - backend
+      - api
 
 volumes:
   mongo_data:
