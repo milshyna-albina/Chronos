@@ -2,14 +2,14 @@ const loginRegex = /^[a-zA-Z0-9_]{3,30}$/;
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const passwordRegex = /^[!-~]{8,50}$/;
 
-function isLoginValid(login) {
+const isLoginValid = (login) => {
   if (!login || typeof login !== 'string') {
     return false;
   }
   return loginRegex.test(login);
 }
 
-function isEmailValid(email) {
+const isEmailValid = (email) => {
   if (!email || typeof email !== 'string') {
     return false;
   }
@@ -18,7 +18,7 @@ function isEmailValid(email) {
   return emailRegex.test(trimmed);
 }
 
-function isPasswordValid(password) {
+const isPasswordValid = (password) => {
   if (!password || typeof password !== 'string') {
     return false;
   }
