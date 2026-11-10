@@ -15,6 +15,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  avatarPath: {
+    type: String,
+    default: 'avatars/default.png'
+  },
   isVerified: {
     type: Boolean,
     default: false

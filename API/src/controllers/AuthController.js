@@ -152,7 +152,12 @@ class AuthController {
       }
 
       const jwToken = jwt.sign(
-        { id: user._id, login: user.login, email: user.email },
+        {
+          id: user._id,
+          login: user.login,
+          email: user.email,
+          avatarPath: user.avatarPath
+        },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -164,7 +169,8 @@ class AuthController {
         user: {
           id: user._id,
           login: user.login,
-          email: user.email
+          email: user.email,
+          avatarPath: user.avatarPath
         }
       });
     } catch (error) {
@@ -382,6 +388,7 @@ class AuthController {
           id: req.user._id,
           login: req.user.login,
           email: req.user.email,
+          avatarPath: req.user.avatarPath,
           isVerified: req.user.isVerified
         }
       });
