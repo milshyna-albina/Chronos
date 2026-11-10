@@ -2,6 +2,7 @@ const path = require('path');
 const User = require('../models/User');
 const Token = require('../models/Token');
 const Calendar = require('../models/Calendar');
+const Event = require('../models/Event');
 const { isLoginValid, isEmailValid } = require('../utils/validator');
 const { deleteFile } = require('../utils/fileHandling');
 
@@ -87,7 +88,7 @@ class UserController {
 
       res.status(200).json({
         message: 'Avatar uploaded successfully.',
-        avatar: avatarFilename
+        avatarPath: avatarFilename
       });
     } catch (error) {
       if (req.file) {
@@ -173,7 +174,7 @@ class UserController {
       const calendarsIds = userCalendars.map(c => c._id);
 
       if (calendarsIds.length > 0) {
-        //event
+        await Event.deleteMany({ calendarId: { $in: calendarsIds } });
       }
       await Calendar.deleteMany({ owner: req.user._id });
       await Calendar.updateMany(

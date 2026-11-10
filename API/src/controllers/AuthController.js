@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Token = require('../models/Token');
+const Calendar = require('../models/Calendar');
 const {
   isLoginValid,
   isEmailValid,
@@ -88,6 +89,13 @@ class AuthController {
       });
 
       await sendConfirmationEmail(email, code);
+
+      await Calendar.create({
+        name: `${newUser.login}'s Calendar`,
+        description: `User's primary calendar`,
+        owner: newUser._id,
+        isDefault: true
+      });
 
       res.status(201).json({
         message: 'User registered successfully. ' +

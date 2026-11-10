@@ -8,6 +8,7 @@ const initDB = require('./config/db');
 const requestLogger = require('./middlewares/requestLogger');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const calendarRoutes = require('./routes/calendarRoutes');
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.get('/', (req, res) => {
 });
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/calendars', calendarRoutes);
 
 async function start() {
   await initDB();
