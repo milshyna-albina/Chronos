@@ -155,7 +155,8 @@ class AuthController {
 
       if (!user.isVerified) {
         return res.status(403).json({
-          message: 'Please confirm your email first.'
+          message: 'Please confirm your email first.',
+          email: user.email
         });
       }
 
