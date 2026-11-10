@@ -109,3 +109,8 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}

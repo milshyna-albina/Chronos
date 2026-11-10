@@ -67,9 +67,6 @@ function ConfirmEmailPage() {
             {error && <p className="error-message">{error}</p>}
             {message && <p className="success-message">{message}</p>}
 
-            <div className="auth-links">
-                <Link to="/login">Back to login</Link>
-            </div>
         </div>
     );
 }

@@ -7,6 +7,7 @@ function LoginPage() {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [userEmail, setUserEmail] = useState('');
     const { login } = useAuthContext();
     const navigate = useNavigate();
 
@@ -24,8 +25,18 @@ function LoginPage() {
                 setError(result.message || 'Login failed');
             }
         } catch (error) {
-            setError(error.response?.data?.message || 'Server error');
+            const errorMessage = error.response?.data?.message || 'Server error';
+            setError(errorMessage);
+            if (errorMessage === 'Please confirm your email first.') {
+                if (error.response?.data?.email) {
+                    setUserEmail(error.response?.data?.email);
+                }
+            }
         }
+    };
+
+    const navigateConfirmEmail = () => {
+        navigate('/confirm-email', { state: { email: userEmail } });
     };
 
     return (
@@ -49,6 +60,7 @@ function LoginPage() {
             </form>
 
             {error && <p className="error-message">{error}</p>}
+            {userEmail && (<button type="button" onClick={navigateConfirmEmail}>Confirm</button>)}
 
             <div className="auth-links">
                 <Link to="/forgot-password">Forgot password?</Link>
