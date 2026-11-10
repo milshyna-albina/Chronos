@@ -69,4 +69,13 @@ const eventSchema = new mongoose.Schema({
 eventSchema.index({ calendarId: 1, startDate: 1, endDate: 1 });
 eventSchema.index({ tags: 1 });
 
+eventSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+  }
+});
+
 module.exports = mongoose.model('Event', eventSchema);

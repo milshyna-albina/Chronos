@@ -1,5 +1,31 @@
 const mongoose = require('mongoose');
 
+const sharedMemberSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  role: {
+    type: String,
+    enum: ['editor', 'viewer'],
+    required: true
+  },
+  isHidden: {
+    type: Boolean,
+    default: false
+  }
+});
+
+sharedMemberSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+  }
+});
+
 const calendarSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -29,17 +55,16 @@ const calendarSchema = new mongoose.Schema({
     type: String,
     default: '#dfc1cc'
   },
-  sharedWith: [{
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    role: {
-      type: String,
-      enum: ['editor', 'viewer'],
-      default: 'viewer'
-    }
-  }]
+  sharedWith: [sharedMemberSchema]
 }, { timestamps: true });
+
+calendarSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+  }
+});
 
 module.exports = mongoose.model('Calendar', calendarSchema);

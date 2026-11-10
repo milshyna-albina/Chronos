@@ -21,8 +21,15 @@ class UserController {
         _id: { $ne: req.user._id }
       }).select('login email avatarPath').limit(10);
 
+      const formatted = users.map(user => {
+        const obj = user.toObject();
+        obj.id = obj._id;
+        delete obj._id;
+        return obj;
+      });
+
       res.status(200).json({
-        users: users
+        users: formatted
       });
     } catch (error) {
       console.error('[UserController.getUserByEmail]:', error.message);
@@ -35,11 +42,6 @@ class UserController {
   async getUserById(req, res) {
     try {
       const { user_id } = req.params;
-      if (!user_id) {
-        return res.status(400).json({
-          message: 'Invalid user ID.'
-        });
-      }
 
       const user = await User.findById(user_id, 'login email avatarPath');
       if (!user) {
@@ -49,7 +51,12 @@ class UserController {
       }
 
       res.status(200).json({
-        user: user
+        user: {
+          id: user._id,
+          login: user.login,
+          email: user.email,
+          avatarPath: user.avatarPath
+        }
       });
     } catch (error) {
       console.error('[UserController.getUserById]:', error.message);
@@ -182,7 +189,7 @@ class UserController {
         { $pull: { sharedWith: { userId: req.user._id } } }
       );
       await Token.deleteMany({ userId: req.user._id });
-      await User.findByIdAndDelete(req.user._id);
+      await user.deleteOne();
 
       if (user.avatarPath && user.avatarPath !== 'avatars/default.png') {
         const avatarPath = path.join(__dirname, '..', '..', 'uploads', user.avatarPath);
