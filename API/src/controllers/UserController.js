@@ -18,7 +18,7 @@ class UserController {
 
       const users = await User.find({
         email: { $regex: email, $options: 'i' },
-        _id: { $ne: req.user._id }
+        _id: { $ne: req.user.id }
       }).select('login email avatarPath').limit(10);
 
       res.status(200).json({
@@ -69,7 +69,7 @@ class UserController {
 
       const avatarFilename = `avatars/${req.file.filename}`;
 
-      const user = await User.findById(req.user._id);
+      const user = await User.findById(req.user.id);
       if (!user) {
         await deleteFile(req.file.path);
         return res.status(404).json({
@@ -105,7 +105,7 @@ class UserController {
     try {
       const { login, email } = req.body;
 
-      const user = await User.findById(req.user._id);
+      const user = await User.findById(req.user.id);
       if (!user) {
         return res.status(404).json({
           message: 'User not found.'
@@ -163,25 +163,25 @@ class UserController {
 
   async deleteUser(req, res) {
     try {
-      const user = await User.findById(req.user._id);
+      const user = await User.findById(req.user.id);
       if (!user) {
         return res.status(404).json({
           message: 'User not found.'
         });
       }
 
-      const userCalendars = await Calendar.find({ owner: req.user._id });
+      const userCalendars = await Calendar.find({ owner: req.user.id });
       const calendarsIds = userCalendars.map(c => c._id);
 
       if (calendarsIds.length > 0) {
         await Event.deleteMany({ calendarId: { $in: calendarsIds } });
       }
-      await Calendar.deleteMany({ owner: req.user._id });
+      await Calendar.deleteMany({ owner: req.user.id });
       await Calendar.updateMany(
-        { 'sharedWith.user': req.user._id },
-        { $pull: { sharedWith: { user: req.user._id } } }
+        { 'sharedWith.user': req.user.id },
+        { $pull: { sharedWith: { user: req.user.id } } }
       );
-      await Token.deleteMany({ userId: req.user._id });
+      await Token.deleteMany({ userId: req.user.id });
       await user.deleteOne();
 
       if (user.avatarPath && user.avatarPath !== 'avatars/default.png') {

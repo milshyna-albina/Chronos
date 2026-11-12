@@ -400,7 +400,7 @@ class AuthController {
       res.status(200).json({
         isAuthenticated: true,
         user: {
-          id: req.user._id,
+          id: req.user.id,
           login: req.user.login,
           email: req.user.email,
           avatarPath: req.user.avatarPath,

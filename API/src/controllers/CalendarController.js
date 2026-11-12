@@ -39,8 +39,8 @@ class CalendarController {
 
       const calendars = await Calendar.find({
         $or: [
-          { owner: req.user._id },
-          { 'sharedWith.user': req.user._id }
+          { owner: req.user.id },
+          { 'sharedWith.user': req.user.id }
         ]
       }).populate('owner', 'login email avatarPath')
         .populate('sharedWith.user', 'login email avatarPath');
@@ -78,7 +78,7 @@ class CalendarController {
         const calendar = c.toJSON();
         calendar.events = eventsByCalendarId[c._id.toString()] || [];
 
-        if (c.owner._id.toString() === req.user._id.toString()) {
+        if (c.owner._id.toString() === req.user.id.toString()) {
           ownedCalendars.push(calendar);
         } else {
           sharedCalendars.push(calendar);
@@ -125,7 +125,7 @@ class CalendarController {
       const calendar = await Calendar.create({
         name: name,
         description: description || '',
-        owner: req.user._id,
+        owner: req.user.id,
         isDefault: false,
         color: color || '#dfc1cc'
       });
@@ -149,8 +149,8 @@ class CalendarController {
       const calendar = await Calendar.findOne({
         _id: calendar_id,
         $or: [
-          { owner: req.user._id },
-          { sharedWith: { $elemMatch: { user: req.user._id, role: 'editor' } } }
+          { owner: req.user.id },
+          { sharedWith: { $elemMatch: { user: req.user.id, role: 'editor' } } }
         ]
       });
       if (!calendar) {
@@ -191,7 +191,7 @@ class CalendarController {
             message: "'isHidden' must be boolean."
           });
         }
-        if (calendar.owner.toString() !== req.user._id.toString()) {
+        if (calendar.owner.toString() !== req.user.id.toString()) {
           return res.status(400).json({
             message: "Only owner can hide calendar."
           });
@@ -236,7 +236,7 @@ class CalendarController {
         });
       }
 
-      if (calendar.owner.toString() === req.user._id.toString()) {
+      if (calendar.owner.toString() === req.user.id.toString()) {
         if (calendar.isDefault && isHidden === true) {
           return res.status(400).json({
             message: "Cannot hide default calendar."
@@ -245,7 +245,7 @@ class CalendarController {
         calendar.isHidden = isHidden;
       } else {
         const member = calendar.sharedWith.find(
-          m => m.user.toString() === req.user._id.toString()
+          m => m.user.toString() === req.user.id.toString()
         );
         if (!member) {
           return res.status(403).json({
@@ -274,7 +274,7 @@ class CalendarController {
 
       const calendar = await Calendar.findOne({
         _id: calendar_id,
-        owner: req.user._id
+        owner: req.user.id
       });
 
       if (!calendar) {
@@ -325,7 +325,7 @@ class CalendarController {
 
       const calendar = await Calendar.findOne({
         _id: calendar_id,
-        owner: req.user._id
+        owner: req.user.id
       });
       if (!calendar) {
         return res.status(404).json({
@@ -339,7 +339,7 @@ class CalendarController {
           message: 'User with this email not found.'
         });
       }
-      if (user._id.toString() === req.user._id.toString()) {
+      if (user._id.toString() === req.user.id.toString()) {
         return res.status(400).json({
           message: 'You cannot share a calendar with yourself.'
         });
@@ -383,8 +383,8 @@ class CalendarController {
         });
       }
 
-      const isOwner = calendar.owner.toString() === req.user._id.toString();
-      const isSelfRemoval = req.user._id.toString() === user_id.toString();
+      const isOwner = calendar.owner.toString() === req.user.id.toString();
+      const isSelfRemoval = req.user.id.toString() === user_id.toString();
 
       if (!isOwner && !isSelfRemoval) {
         return res.status(403).json({
@@ -423,8 +423,8 @@ class CalendarController {
       const calendar = await Calendar.findOne({
         _id: calendar_id,
         $or: [
-          { owner: req.user._id },
-          { sharedWith: { $elemMatch: { user: req.user._id, role: 'editor' } } }
+          { owner: req.user.id },
+          { sharedWith: { $elemMatch: { user: req.user.id, role: 'editor' } } }
         ]
       });
       if (!calendar) {
@@ -522,7 +522,7 @@ class CalendarController {
         name: name,
         description: description || '',
         calendarId: calendar_id,
-        createdBy: req.user._id,
+        createdBy: req.user.id,
         type: type,
         startDate: parsedStart,
         endDate: parsedEnd,
