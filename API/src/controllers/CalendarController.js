@@ -42,7 +42,7 @@ class CalendarController {
           { owner: req.user._id },
           { 'sharedWith.userId': req.user._id }
         ]
-      }).populate('owner', 'login email avatarPath');
+      }).populate('owner', 'login email avatarPath').populate('sharedWith.userId', 'login email avatarPath');
 
       if (calendars.length === 0) {
         return res.status(200).json({ owned: [], shared: [] });
@@ -59,7 +59,7 @@ class CalendarController {
         ]
       };
 
-      const events = await Event.find(eventQuery);
+      const events = await Event.find(eventQuery).populate('createdBy', 'login email');
       const eventsByCalendarId = {};
 
       events.forEach(event => {
@@ -74,12 +74,13 @@ class CalendarController {
       const sharedCalendars = [];
 
       calendars.forEach(c => {
-        c.events = eventsByCalendarId[c._id.toString()] || [];
+        const calendar = c.toObject();
+        calendar.events = eventsByCalendarId[c._id.toString()] || [];
 
         if (c.owner._id.toString() === req.user._id.toString()) {
-          ownedCalendars.push(c);
+          ownedCalendars.push(calendar);
         } else {
-          sharedCalendars.push(c);
+          sharedCalendars.push(calendar);
         }
       });
 
@@ -223,7 +224,7 @@ class CalendarController {
       }
 
       const { isHidden } = req.body;
-      if (!isHidden) {
+      if (isHidden === undefined) {
         return res.status(400).json({
           message: "'isHidden' is required."
         });

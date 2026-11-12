@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthContext } from '../context/AuthContext.js';
 import { searchUsers } from '../services/userService.js';
 import { getAvatarUrl } from '../utils/avatar.js';
+import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
 
 function CalendarPage() {
     const { logout, user } = useAuthContext();
@@ -45,17 +46,20 @@ function CalendarPage() {
             </form>
 
             {users.map((item) => (
-                <div key={item._id}>
+                <div key={item.id}>
                     <img className="avatar" src={getAvatarUrl(item.avatarPath)} alt="Avatar" width="50" height="50" />
                     <p>{item.login}</p>
                     <p>{item.email}</p>
-                    <Link to={`/users/${item._id}`}>View Profile</Link>
+                    <Link to={`/users/${item.id}`}>View Profile</Link>
                 </div>
             ))}
 
             {error && <p>{error}</p>}
 
             <button onClick={logout}>Log out</button>
+
+            <br/><br/>
+            <CalendarGrid />
         </div>
     );
 }
