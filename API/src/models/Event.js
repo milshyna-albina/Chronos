@@ -60,9 +60,8 @@ const eventSchema = new mongoose.Schema({
     default: ''
   },
   tags: [{
-    type: String,
-    trim: true,
-    lowercase: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Tag'
   }]
 }, { timestamps: true });
 

@@ -59,6 +59,15 @@ const isTypeValid = (type) => {
          && ['arrangement', 'reminder', 'task'].includes(type);
 };
 
+const isTagValid = (tag) => {
+  if (!tag || typeof tag !== 'string') {
+    return false;
+  }
+  const trimmed = tag.trim();
+
+  return trimmed.length > 0 && trimmed.length <= 50;
+};
+
 module.exports = {
   isLoginValid,
   isEmailValid,
@@ -67,5 +76,6 @@ module.exports = {
   isDescriptionValid,
   isColorValid,
   isRoleValid,
-  isTypeValid
+  isTypeValid,
+  isTagValid
 };

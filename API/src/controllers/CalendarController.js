@@ -1,12 +1,14 @@
 const Calendar = require('../models/Calendar');
 const Event = require('../models/Event');
 const User = require('../models/User');
+const Tag = require('../models/Tag');
 const {
   isNameValid,
   isDescriptionValid,
   isColorValid,
   isRoleValid,
-  isTypeValid
+  isTypeValid,
+  isTagValid
 } = require('../utils/validator');
 
 class CalendarController {
@@ -60,7 +62,12 @@ class CalendarController {
         ]
       };
 
-      const events = await Event.find(eventQuery).populate('createdBy', 'login email');
+      const events = await Event.find(eventQuery)
+        .populate('createdBy', 'login email')
+        .populate({
+          path: 'tags',
+          match: { userId: req.user.id }
+        });
       const eventsByCalendarId = {};
 
       events.forEach(event => {
@@ -68,6 +75,7 @@ class CalendarController {
         if (!eventsByCalendarId[calendarId]) {
           eventsByCalendarId[calendarId] = [];
         }
+        event.tags = event.tags.filter(tag => tag !== null);
         eventsByCalendarId[calendarId].push(event);
       });
 
@@ -482,12 +490,25 @@ class CalendarController {
         });
       }
 
-      let formattedTags = [];
+      let tagIds = [];
       if (tags) {
         const tagsArray = Array.isArray(tags) ? tags : [tags];
-        formattedTags = tagsArray
-          .filter(tag => isDescriptionValid(tag))
+        const tagNames = tagsArray
+          .filter(tag => isTagValid(tag))
           .map(tag => tag.trim().toLowerCase());
+
+        if (tagNames.length > 0) {
+          const existing = await Tag.find({
+            userId: req.user.id,
+            name: { $in: tagNames }
+          });
+          if (existing.length !== tagNames.length) {
+            return res.status(400).json({
+              message: 'One or more specified tags do not exist or do not belong to you.'
+            });
+          }
+          tagIds = existing.map(tag => tag._id);
+        }
       }
 
       const parsedStart = new Date(startDate);
@@ -529,7 +550,7 @@ class CalendarController {
         isAllDay: isAllDay || false,
         location: location || '',
         color: color || calendar.color,
-        tags: formattedTags || []
+        tags: tagIds || []
       });
 
       res.status(201).json({
