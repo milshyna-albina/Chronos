@@ -25,7 +25,7 @@ function CalendarList({ calendars, user, onUpdate }) {
     const handleUpdateCalendar = async (calendarData) => {
         setError('');
         try {
-            await updateCalendar(editingCalendar._id, calendarData);
+            await updateCalendar(editingCalendar.id, calendarData);
             setEditingCalendar(null);
             onUpdate();
         } catch (err) {
@@ -81,8 +81,8 @@ function CalendarList({ calendars, user, onUpdate }) {
 
     const sharedCalendars = calendars.shared.map(cal => {
         const myMemberData = cal.sharedWith?.find(member => {
-            const memberId = member.userId?._id || member.userId;
-            const currentUserId = user?._id || user?.id;
+            const memberId = member.user?.id || member.user;
+            const currentUserId = user?.id || user?.id;
             return String(memberId) === String(currentUserId);
         });
         return {
@@ -94,8 +94,8 @@ function CalendarList({ calendars, user, onUpdate }) {
     });
 
     const getMemberName = (member) => {
-        const memberObj = member.userId;
-        return memberObj?.login || memberObj?.email || memberObj?._id || memberObj;
+        const memberObj = member.user;
+        return memberObj?.login || memberObj?.email || memberObj?.id || memberObj;
     };
 
     return (
@@ -113,24 +113,24 @@ function CalendarList({ calendars, user, onUpdate }) {
 
             <ul>
                 {calendars.owned.map(cal => (
-                    <li key={cal._id}>
+                    <li key={cal.id}>
                         {cal.name} {cal.isDefault ? '(default)' : ''}
                         <button type="button" onClick={() => setViewingCalendar(cal)}>Details</button>
                         <button type="button" onClick={() => startEditing(cal)}>Edit</button>
 
                         {!cal.isDefault && (
-                            <button type="button" onClick={() => handleToggleVisibility(cal._id, cal.isHidden)}>{cal.isHidden ? 'Show' : 'Hide'}</button>
+                            <button type="button" onClick={() => handleToggleVisibility(cal.id, cal.isHidden)}>{cal.isHidden ? 'Show' : 'Hide'}</button>
                         )}
 
-                        <button type="button" onClick={() => setShareCalendarId(cal._id)}>Share</button>
+                        <button type="button" onClick={() => setShareCalendarId(cal.id)}>Share</button>
 
                         {!cal.isDefault && (
-                            <button type="button" onClick={() => handleDeleteCalendar(cal._id)}>Delete</button>
+                            <button type="button" onClick={() => handleDeleteCalendar(cal.id)}>Delete</button>
                         )}
 
-                        {editingCalendar?._id === cal._id && (
+                        {editingCalendar?.id === cal.id && (
                             <CalendarForm
-                                key={cal._id}
+                                key={cal.id}
                                 calendar={cal}
                                 onSubmit={handleUpdateCalendar}
                                 onCancel={() => setEditingCalendar(null)}
@@ -140,13 +140,13 @@ function CalendarList({ calendars, user, onUpdate }) {
                         {cal.sharedWith?.length > 0 && (
                             <ul>
                                 {cal.sharedWith.map(member => {
-                                    const memberObj = member.userId;
-                                    const displayId = memberObj?._id || memberObj;
+                                    const memberObj = member.user;
+                                    const displayId = memberObj?.id || memberObj;
 
                                     return (
                                         <li key={displayId}>
                                             {getMemberName(member)} ({member.role})
-                                            <button type="button" onClick={() => handleRemoveMember(cal._id, displayId)}>Remove</button>
+                                            <button type="button" onClick={() => handleRemoveMember(cal.id, displayId)}>Remove</button>
                                         </li>
                                     );
                                 })}
@@ -168,7 +168,7 @@ function CalendarList({ calendars, user, onUpdate }) {
             {sharedCalendars.length > 0 ? (
                 <ul>
                     {sharedCalendars.map(cal => (
-                        <li key={cal._id}>
+                        <li key={cal.id}>
                             {cal.name} ({cal.myRole})
                             <button type="button" onClick={() => setViewingCalendar(cal)}>Details</button>
 
@@ -176,13 +176,13 @@ function CalendarList({ calendars, user, onUpdate }) {
                                 <button type="button" onClick={() => startEditing(cal)}>Edit</button>
                             )}
 
-                            <button type="button" onClick={() => handleToggleVisibility(cal._id, cal.myIsHidden)}>
+                            <button type="button" onClick={() => handleToggleVisibility(cal.id, cal.myIsHidden)}>
                                 {cal.myIsHidden ? 'Show' : 'Hide'}
                             </button>
 
-                            {editingCalendar?._id === cal._id && cal.isEditor && (
+                            {editingCalendar?.id === cal.id && cal.isEditor && (
                                 <CalendarForm
-                                    key={cal._id}
+                                    key={cal.id}
                                     calendar={cal}
                                     onSubmit={handleUpdateCalendar}
                                     onCancel={() => setEditingCalendar(null)}

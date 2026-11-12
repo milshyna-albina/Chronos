@@ -21,15 +21,8 @@ class UserController {
         _id: { $ne: req.user._id }
       }).select('login email avatarPath').limit(10);
 
-      const formatted = users.map(user => {
-        const obj = user.toObject();
-        obj.id = obj._id;
-        delete obj._id;
-        return obj;
-      });
-
       res.status(200).json({
-        users: formatted
+        users: users
       });
     } catch (error) {
       console.error('[UserController.getUserByEmail]:', error.message);
@@ -185,8 +178,8 @@ class UserController {
       }
       await Calendar.deleteMany({ owner: req.user._id });
       await Calendar.updateMany(
-        { 'sharedWith.userId': req.user._id },
-        { $pull: { sharedWith: { userId: req.user._id } } }
+        { 'sharedWith.user': req.user._id },
+        { $pull: { sharedWith: { user: req.user._id } } }
       );
       await Token.deleteMany({ userId: req.user._id });
       await user.deleteOne();

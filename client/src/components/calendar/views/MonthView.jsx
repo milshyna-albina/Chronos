@@ -25,7 +25,7 @@ function MonthView({ weeks, dayNames, getEventsForDay, onDayClick, onEventClick 
             const events = getEventsForDay(dayObj.fullDate).filter(isMultiDayEvent);
 
             events.forEach(event => {
-                const eventId = event._id;
+                const eventId = event.id;
 
                 if (weekEvents.has(eventId)) return;
 

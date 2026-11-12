@@ -40,9 +40,10 @@ class CalendarController {
       const calendars = await Calendar.find({
         $or: [
           { owner: req.user._id },
-          { 'sharedWith.userId': req.user._id }
+          { 'sharedWith.user': req.user._id }
         ]
-      }).populate('owner', 'login email avatarPath').populate('sharedWith.userId', 'login email avatarPath');
+      }).populate('owner', 'login email avatarPath')
+        .populate('sharedWith.user', 'login email avatarPath');
 
       if (calendars.length === 0) {
         return res.status(200).json({ owned: [], shared: [] });
@@ -74,7 +75,7 @@ class CalendarController {
       const sharedCalendars = [];
 
       calendars.forEach(c => {
-        const calendar = c.toObject();
+        const calendar = c.toJSON();
         calendar.events = eventsByCalendarId[c._id.toString()] || [];
 
         if (c.owner._id.toString() === req.user._id.toString()) {
@@ -149,7 +150,7 @@ class CalendarController {
         _id: calendar_id,
         $or: [
           { owner: req.user._id },
-          { sharedWith: { $elemMatch: { userId: req.user._id, role: 'editor' } } }
+          { sharedWith: { $elemMatch: { user: req.user._id, role: 'editor' } } }
         ]
       });
       if (!calendar) {
@@ -244,7 +245,7 @@ class CalendarController {
         calendar.isHidden = isHidden;
       } else {
         const member = calendar.sharedWith.find(
-          m => m.userId.toString() === req.user._id.toString()
+          m => m.user.toString() === req.user._id.toString()
         );
         if (!member) {
           return res.status(403).json({
@@ -345,7 +346,7 @@ class CalendarController {
       }
 
       const alreadyShared = calendar.sharedWith.some(
-        item => item.userId.toString() === user._id.toString()
+        item => item.user.toString() === user._id.toString()
       );
       if (alreadyShared) {
         return res.status(400).json({
@@ -354,7 +355,7 @@ class CalendarController {
       }
 
       calendar.sharedWith.push({
-        userId: user._id,
+        user: user._id,
         role: role
       });
       await calendar.save();
@@ -392,7 +393,7 @@ class CalendarController {
       }
 
       const memberExists = calendar.sharedWith.some(
-        item => item.userId.toString() === user_id.toString()
+        item => item.user.toString() === user_id.toString()
       );
       if (!memberExists) {
         return res.status(404).json({
@@ -401,7 +402,7 @@ class CalendarController {
       }
 
       await Calendar.findByIdAndUpdate(calendar_id, {
-        $pull: { sharedWith: { userId: user_id } }
+        $pull: { sharedWith: { user: user_id } }
       });
 
       res.status(200).json({
@@ -423,7 +424,7 @@ class CalendarController {
         _id: calendar_id,
         $or: [
           { owner: req.user._id },
-          { sharedWith: { $elemMatch: { userId: req.user._id, role: 'editor' } } }
+          { sharedWith: { $elemMatch: { user: req.user._id, role: 'editor' } } }
         ]
       });
       if (!calendar) {

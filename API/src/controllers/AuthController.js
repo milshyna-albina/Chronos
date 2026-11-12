@@ -391,6 +391,12 @@ class AuthController {
 
   async checkStatus(req, res) {
     try {
+      if (!req.user) {
+        return res.status(200).json({
+          isAuthenticated: false,
+          user: null
+        });
+      }
       res.status(200).json({
         isAuthenticated: true,
         user: {

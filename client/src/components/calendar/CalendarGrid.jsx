@@ -99,8 +99,8 @@ function CalendarGrid() {
 
     const sharedEvents = calendars.shared.flatMap(calendar => {
         const myMemberData = calendar.sharedWith?.find(m => {
-            const memberId = m.userId?._id || m.userId;
-            const currentUserId = user?._id || user?.id;
+            const memberId = m.user?.id || m.user;
+            const currentUserId = user?.id || user?.id;
             return String(memberId) === String(currentUserId);
         });
         if (myMemberData?.isHidden) return [];

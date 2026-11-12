@@ -1,6 +1,6 @@
 const express = require('express');
 const AuthController = require('../controllers/AuthController');
-const { authorize } = require('../middlewares/authMiddleware');
+const { softAuth } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -11,6 +11,6 @@ router.post('/confirm-email', AuthController.confirmEmail);
 router.post('/resend-code', AuthController.resendConfirmationCode);
 router.post('/password-reset', AuthController.passwordResetRequest);
 router.post('/password-reset/:token', AuthController.passwordResetConfirm);
-router.get('/status', authorize, AuthController.checkStatus);
+router.get('/status', softAuth, AuthController.checkStatus);
 
 module.exports = router;

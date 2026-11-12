@@ -4,19 +4,19 @@ import { createEvent } from '../../services/calendarService.js';
 function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
     const editableSharedCalendars = useMemo(() => calendars.shared.filter(cal => {
         const myData = cal.sharedWith?.find(m => {
-            const memberId = m.userId?._id;
-            const currentUserId = user?._id;
+            const memberId = m.user?.id;
+            const currentUserId = user?.id;
             return String(memberId) === String(currentUserId);
         });
         return myData?.role === 'editor';
-    }), [calendars.shared, user?._id]);
+    }), [calendars.shared, user?.id]);
 
     const allAvailableCalendars = useMemo(
         () => [...calendars.owned, ...editableSharedCalendars],
         [calendars.owned, editableSharedCalendars]
     );
 
-    const initialCalendarId = allAvailableCalendars.length > 0 ? allAvailableCalendars[0]._id : '';
+    const initialCalendarId = allAvailableCalendars.length > 0 ? allAvailableCalendars[0].id : '';
     const initialCalendarColor = allAvailableCalendars.length > 0 ? allAvailableCalendars[0].color : '#dfc1cc';
 
     const [selectedCalendarId, setSelectedCalendarId] = useState(initialCalendarId);
@@ -31,7 +31,7 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
         const updateColorAsync = async () => {
             await Promise.resolve();
             const selectedCal = allAvailableCalendars.find(
-                cal => String(cal._id) === String(selectedCalendarId)
+                cal => String(cal.id) === String(selectedCalendarId)
             );
             if (selectedCal) {
                 setEventColor(selectedCal.color || '#dfc1cc');
@@ -124,10 +124,10 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
                     <label>Calendar</label>
                     <select value={selectedCalendarId} onChange={handleCalendarChange}>
                         {calendars.owned.map(cal => (
-                            <option key={cal._id} value={cal._id}>{cal.name}</option>
+                            <option key={cal.id} value={cal.id}>{cal.name}</option>
                         ))}
                         {editableSharedCalendars.map(cal => (
-                            <option key={cal._id} value={cal._id}>{cal.name}</option>
+                            <option key={cal.id} value={cal.id}>{cal.name}</option>
                         ))}
                     </select>
                 </div>

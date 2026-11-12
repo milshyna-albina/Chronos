@@ -5,8 +5,8 @@ function CalendarDetails({ calendar, onClose }) {
     };
 
     const getMemberName = (member) => {
-        const memberObj = member.userId;
-        return memberObj?.login || memberObj?.email || memberObj?._id || memberObj;
+        const memberObj = member.user;
+        return memberObj?.login || memberObj?.email || memberObj?.id || memberObj;
     };
 
     return (
@@ -23,7 +23,7 @@ function CalendarDetails({ calendar, onClose }) {
                     <p>Shared with</p>
                     <ul>
                         {calendar.sharedWith.map(member => (
-                            <li key={member.userId?._id || member.userId}>
+                            <li key={member.user?.id || member.user}>
                                 {getMemberName(member)} ({member.role})
                             </li>
                         ))}
