@@ -8,7 +8,8 @@ const {
   isColorValid,
   isRoleValid,
   isTypeValid,
-  isTagValid
+  isTagValid,
+  isActionValid
 } = require('../utils/validator');
 
 class CalendarController {
@@ -362,9 +363,15 @@ class CalendarController {
         });
       }
 
+      const expirationDays = 7;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expirationDays);
+
       calendar.sharedWith.push({
         user: user._id,
-        role: role
+        role: role,
+        status: 'pending',
+        expiresAt: expiresAt
       });
       await calendar.save();
 
@@ -374,6 +381,126 @@ class CalendarController {
       });
     } catch (error) {
       console.error('[CalendarController.shareCalendar]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async respondToInvite(req, res) {
+    try {
+      const { calendar_id } = req.params;
+      const { action } = req.body;
+
+      if (!action) {
+        return res.status(400).json({
+          message: 'Action is required.'
+        });
+      }
+      if (!isActionValid(action)) {
+        return res.status(400).json({
+          message: "Action must be 'accept' or 'decline'."
+        });
+      }
+
+      const calendar = await Calendar.findOne({
+        _id: calendar_id,
+        'sharedWith.user': req.user.id,
+        'sharedWith.status': 'pending',
+      });
+      if (!calendar) {
+        return res.status(404).json({
+          message: 'Pending invitation not found.'
+        });
+      }
+
+      const member = calendar.sharedWith.find(
+        item => item.user.toString() === req.user.id.toString()
+      );
+
+      if (new Date() > new Date(member.expiresAt)) {
+        calendar.sharedWith = calendar.sharedWith.filter(
+          item => item.user.toString() !== req.user.id.toString()
+        );
+        await calendar.save();
+
+        return res.status(400).json({
+          message: 'This invitation has expired.'
+        });
+      }
+
+      if (action === 'accept') {
+        member.status = 'accepted';
+        member.expiresAt = undefined;
+        await calendar.save();
+
+        return res.status(200).json({
+          message: 'Invitation accepted successfully.'
+        });
+      }
+
+      if (action === 'decline') {
+        calendar.sharedWith = calendar.sharedWith.filter(
+          item => item.user.toString() !== req.user.id.toString()
+        );
+        await calendar.save();
+
+        return res.status(200).json({
+          message: 'Invitation declined successfully.'
+        });
+      }
+    } catch (error) {
+      console.error('[CalendarController.respondToInvite]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async updateMember(req, res) {
+    try {
+      const { calendar_id, user_id } = req.params;
+      const { role } = req.body;
+
+      if (!role) {
+        return res.status(400).json({
+          message: 'Role is required.'
+        });
+      }
+      if (!isRoleValid(role)) {
+        return res.status(400).json({
+          message: "Role must be 'editor' or 'viewer'."
+        });
+      }
+
+      const calendar = await Calendar.findOne({
+        _id: calendar_id,
+        owner: req.user.id
+      });
+      if (!calendar) {
+        return res.status(404).json({
+          message: 'Calendar not found or you do not have permission to edit it.'
+        });
+      }
+
+      const member = calendar.sharedWith.find(
+        item => item.user.toString() === user_id.toString()
+      );
+      if (!member) {
+        return res.status(404).json({
+          message: 'Member not found in this calendar sharing list.'
+        });
+      }
+
+      member.role = role;
+      await calendar.save();
+
+      res.status(200).json({
+        message: 'Member updated successfully.',
+        sharedWith: calendar.sharedWith
+      });
+    } catch (error) {
+      console.error('[CalendarController.updateMember]:', error.message);
       res.status(500).json({
         message: 'Internal server error.'
       });

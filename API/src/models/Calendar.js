@@ -14,8 +14,17 @@ const sharedMemberSchema = new mongoose.Schema({
   isHidden: {
     type: Boolean,
     default: false
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'declined'],
+    default: 'pending'
+  },
+  expiresAt: {
+    type: Date,
+    required: true
   }
-});
+}, { timestamps: true });
 
 sharedMemberSchema.set('toJSON', {
   virtuals: true,
