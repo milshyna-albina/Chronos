@@ -99,7 +99,7 @@ const sendInviteEmail = async (email, calendar, owner) => {
           <strong>@${owner}</strong> has invited you to collaborate on the calendar
           <strong>"${calendar}"</strong>.
       </p>
-      <p style="margin: 0 0 0 25px; font-size: 14px; color: #806477;">
+      <p style="margin: 0 0 25px 0; font-size: 14px; color: #806477;">
           You can accept or decline this request. This invitation will expire in
           <strong>7 days</strong>.
       </p>

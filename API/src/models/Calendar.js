@@ -17,12 +17,11 @@ const sharedMemberSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'declined'],
+    enum: ['pending', 'accepted'],
     default: 'pending'
   },
   expiresAt: {
-    type: Date,
-    required: true
+    type: Date
   }
 }, { timestamps: true });
 
@@ -63,6 +62,20 @@ const calendarSchema = new mongoose.Schema({
   color: {
     type: String,
     default: '#dfc1cc'
+  },
+  isPublicEnabled: {
+    type: Boolean,
+    default: false
+  },
+  shareToken: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  publicRole: {
+    type: String,
+    enum: ['editor', 'viewer'],
+    default: 'viewer'
   },
   sharedWith: [sharedMemberSchema]
 }, { timestamps: true });
