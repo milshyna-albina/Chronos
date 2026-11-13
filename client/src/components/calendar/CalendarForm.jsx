@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import {CALENDAR_COLOR} from "../../utils/colors.js";
 
 function CalendarForm({ calendar, onSubmit, onCancel }) {
     const [name, setName] = useState(calendar?.name || '');
     const [description, setDescription] = useState(calendar?.description || '');
-    const [color, setColor] = useState(calendar?.color || '#dfc1cc');
+    const [color, setColor] = useState(calendar?.color || CALENDAR_COLOR);
 
     const handleSubmit = (e) => {
         e.preventDefault();

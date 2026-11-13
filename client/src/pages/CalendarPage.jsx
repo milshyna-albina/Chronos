@@ -4,6 +4,7 @@ import { useAuthContext } from '../context/AuthContext.js';
 import { searchUsers } from '../services/userService.js';
 import { getAvatarUrl } from '../utils/avatar.js';
 import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
+import TagForm from '../components/tag/TagForm.jsx';
 
 function CalendarPage() {
     const { logout, user } = useAuthContext();
@@ -11,6 +12,7 @@ function CalendarPage() {
     const [searchEmail, setSearchEmail] = useState('');
     const [users, setUsers] = useState([]);
     const [error, setError] = useState('');
+    const [showTagForm, setShowTagForm] = useState(false);
 
     const handleSearch = async (e) => {
         e.preventDefault();
@@ -60,6 +62,12 @@ function CalendarPage() {
 
             <br/><br/>
             <CalendarGrid />
+            <br/>
+            {showTagForm ? (
+                <TagForm onClose={() => setShowTagForm(false)} />
+            ) : (
+                <button onClick={() => setShowTagForm(true)}>Tags</button>
+            )}
         </div>
     );
 }

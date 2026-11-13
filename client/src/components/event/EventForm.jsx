@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createEvent } from '../../services/calendarService.js';
+import { getTags } from '../../services/tagService.js';
+import {CALENDAR_COLOR} from "../../utils/colors.js";
 
 function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
     const editableSharedCalendars = useMemo(() => calendars.shared.filter(cal => {
@@ -17,7 +19,7 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
     );
 
     const initialCalendarId = allAvailableCalendars.length > 0 ? allAvailableCalendars[0].id : '';
-    const initialCalendarColor = allAvailableCalendars.length > 0 ? allAvailableCalendars[0].color : '#dfc1cc';
+    const initialCalendarColor = allAvailableCalendars.length > 0 ? allAvailableCalendars[0].color : CALENDAR_COLOR;
 
     const [selectedCalendarId, setSelectedCalendarId] = useState(initialCalendarId);
     const [eventColor, setEventColor] = useState(initialCalendarColor);
@@ -25,7 +27,12 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
     const [eventDescription, setEventDescription] = useState('');
     const [eventType, setEventType] = useState('arrangement');
     const [location, setLocation] = useState('');
-    const [tags, setTags] = useState('');
+    const [availableTags, setAvailableTags] = useState([]);
+    const [selectedTags, setSelectedTags] = useState([]);
+
+    useEffect(() => {
+        getTags().then(data => setAvailableTags(data.tags || [])).catch(console.error);
+    }, []);
 
     useEffect(() => {
         const updateColorAsync = async () => {
@@ -34,7 +41,7 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
                 cal => String(cal.id) === String(selectedCalendarId)
             );
             if (selectedCal) {
-                setEventColor(selectedCal.color || '#dfc1cc');
+                setEventColor(selectedCal.color || CALENDAR_COLOR);
             }
         };
 
@@ -72,6 +79,12 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
         setSelectedCalendarId(e.target.value);
     };
 
+    const toggleTag = (tagName) => {
+        setSelectedTags(prev =>
+            prev.includes(tagName) ? prev.filter(t => t !== tagName) : [...prev, tagName]
+        );
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -95,8 +108,6 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
             return;
         }
 
-        const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
-
         const eventData = {
             name: eventName,
             description: eventDescription,
@@ -104,7 +115,7 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
             startDate: startDateTime.toISOString(),
             endDate: endDateTime.toISOString(),
             location: location,
-            tags: tagsArray,
+            tags: selectedTags,
             color: eventColor
         };
 
@@ -151,7 +162,18 @@ function EventForm({ selectedDate, calendars, user, onSuccess, onCancel }) {
 
                 <div>
                     <label>Tags</label>
-                    <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} />
+                    {availableTags.length === 0 ? (
+                        <p>No tags</p>
+                    ) : (
+                        <div>
+                            {availableTags.map(tag => (
+                                <label key={tag.id} style={{ backgroundColor: tag.color }}>
+                                    <input type="checkbox" checked={selectedTags.includes(tag.name)} onChange={() => toggleTag(tag.name)} />
+                                    {tag.name}
+                                </label>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div>

@@ -10,7 +10,18 @@ function EventDetails({ event, onClose }) {
             <p>Start: {new Date(event.startDate).toLocaleString()}</p>
             <p>End: {new Date(event.endDate).toLocaleString()}</p>
             {event.location && <p>Location: {event.location}</p>}
-            {event.tags && event.tags.length > 0 && (<p>Tags: {event.tags.join(', ')}</p>)}
+            {event.tags && event.tags.length > 0 && (
+                <div>
+                    <p>Tags:</p>
+                    <div>
+                        {event.tags.map(tag => (
+                            <div key={tag.id} style={{ backgroundColor: tag.color }}>
+                                {tag.name}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
             <button onClick={onClose}>Close</button>
         </div>
     );
