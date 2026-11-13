@@ -19,7 +19,7 @@ const tokenSchema = new mongoose.Schema({
     type: Date,
     expires: 0,
     required: true
-  },
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Token', tokenSchema);

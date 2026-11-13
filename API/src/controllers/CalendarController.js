@@ -1,14 +1,17 @@
+const crypto = require('crypto');
 const Calendar = require('../models/Calendar');
 const Event = require('../models/Event');
 const User = require('../models/User');
 const Tag = require('../models/Tag');
+const { sendInviteEmail } = require('../utils/mail');
 const {
   isNameValid,
   isDescriptionValid,
   isColorValid,
   isRoleValid,
   isTypeValid,
-  isTagValid
+  isTagValid,
+  isActionValid
 } = require('../utils/validator');
 
 class CalendarController {
@@ -334,7 +337,7 @@ class CalendarController {
       const calendar = await Calendar.findOne({
         _id: calendar_id,
         owner: req.user.id
-      });
+      }).populate('owner', 'login');
       if (!calendar) {
         return res.status(404).json({
           message: 'Calendar not found or you do not have permission to share it.'
@@ -362,9 +365,17 @@ class CalendarController {
         });
       }
 
+      const expirationDays = 7;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expirationDays);
+
+      await sendInviteEmail(email, calendar.name, calendar.owner.login);
+
       calendar.sharedWith.push({
         user: user._id,
-        role: role
+        role: role,
+        status: 'pending',
+        expiresAt: expiresAt
       });
       await calendar.save();
 
@@ -374,6 +385,257 @@ class CalendarController {
       });
     } catch (error) {
       console.error('[CalendarController.shareCalendar]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async respondToInvite(req, res) {
+    try {
+      const { calendar_id } = req.params;
+      const { action } = req.body;
+
+      if (!action) {
+        return res.status(400).json({
+          message: 'Action is required.'
+        });
+      }
+      if (!isActionValid(action)) {
+        return res.status(400).json({
+          message: "Action must be 'accept' or 'decline'."
+        });
+      }
+
+      const calendar = await Calendar.findOne({
+        _id: calendar_id,
+        'sharedWith.user': req.user.id,
+        'sharedWith.status': 'pending',
+      });
+      if (!calendar) {
+        return res.status(404).json({
+          message: 'Pending invitation not found.'
+        });
+      }
+
+      const member = calendar.sharedWith.find(
+        item => item.user.toString() === req.user.id.toString()
+      );
+
+      if (new Date() > new Date(member.expiresAt)) {
+        calendar.sharedWith = calendar.sharedWith.filter(
+          item => item.user.toString() !== req.user.id.toString()
+        );
+        await calendar.save();
+
+        return res.status(400).json({
+          message: 'This invitation has expired.'
+        });
+      }
+
+      if (action === 'accept') {
+        member.status = 'accepted';
+        member.expiresAt = undefined;
+        await calendar.save();
+
+        return res.status(200).json({
+          message: 'Invitation accepted successfully.'
+        });
+      }
+
+      if (action === 'decline') {
+        calendar.sharedWith = calendar.sharedWith.filter(
+          item => item.user.toString() !== req.user.id.toString()
+        );
+        await calendar.save();
+
+        return res.status(200).json({
+          message: 'Invitation declined successfully.'
+        });
+      }
+    } catch (error) {
+      console.error('[CalendarController.respondToInvite]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async generateShareLink(req, res) {
+    try {
+      const { calendar_id } = req.params;
+      const { role } = req.body;
+
+      if (!role) {
+        return res.status(400).json({
+          message: 'Role is required.'
+        });
+      }
+      if (!isRoleValid(role)) {
+        return res.status(400).json({
+          message: "Role must be 'editor' or 'viewer'."
+        });
+      }
+
+      const calendar = await Calendar.findOne({
+        _id: calendar_id,
+        owner: req.user.id
+      });
+      if (!calendar) {
+        return res.status(404).json({
+          message: 'Calendar not found or you do not have permission to edit it.'
+        });
+      }
+
+      const token = crypto.randomUUID();
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+      calendar.shareToken = tokenHash;
+      calendar.isPublicEnabled = true;
+      calendar.publicRole = role;
+
+      await calendar.save();
+
+      const link = `${process.env.FRONTEND_URL}/calendar/share?token=${token}`;
+
+      res.status(200).json({
+        message: 'Share link generated successfully.',
+        link: link,
+        isPublicEnabled: calendar.isPublicEnabled,
+        publicRole: calendar.publicRole
+      });
+    } catch (error) {
+      console.error('[CalendarController.generateShareLink]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async disableShareLink(req, res) {
+    try {
+      const { calendar_id } = req.params;
+
+      const calendar = await Calendar.findOne({
+        _id: calendar_id,
+        owner: req.user.id
+      });
+      if (!calendar) {
+        return res.status(404).json({
+          message: 'Calendar not found or you do not have permission to edit it.'
+        });
+      }
+
+      calendar.isPublicEnabled = false;
+      calendar.shareToken = undefined;
+
+      await calendar.save();
+
+      res.status(200).json({
+        message: 'Share link disabled successfully.',
+        isPublicEnabled: calendar.isPublicEnabled
+      });
+    } catch (error) {
+      console.error('[CalendarController.disableShareLink]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async joinViaLink(req, res) {
+    try {
+      const { token } = req.params;
+      if (!token) {
+        return res.status(400).json({
+          message: `Invalid token ID.`
+        });
+      }
+
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const calendar = await Calendar.findOne({
+        shareToken: tokenHash,
+        isPublicEnabled: true
+      });
+      if (!calendar) {
+        return res.status(404).json({
+          message: 'Invalid, expired, or disabled invite link.'
+        });
+      }
+
+      if (calendar.owner.toString() === req.user.id.toString()) {
+        return res.status(400).json({
+          message: 'You are the owner of this calendar.'
+        });
+      }
+
+      const member = calendar.sharedWith.find(
+        item => item.user.toString() === req.user.id.toString()
+      );
+      if (!member) {
+        calendar.sharedWith.push({
+          user: req.user.id,
+          role: calendar.publicRole,
+          status: 'accepted'
+        });
+        await calendar.save();
+      }
+      res.status(200).json({
+        message: 'Joined to the calendar successfully.',
+        calendarId: calendar._id
+      });
+    } catch (error) {
+      console.error('[CalendarController.joinViaLink]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async updateMember(req, res) {
+    try {
+      const { calendar_id, user_id } = req.params;
+      const { role } = req.body;
+
+      if (!role) {
+        return res.status(400).json({
+          message: 'Role is required.'
+        });
+      }
+      if (!isRoleValid(role)) {
+        return res.status(400).json({
+          message: "Role must be 'editor' or 'viewer'."
+        });
+      }
+
+      const calendar = await Calendar.findOne({
+        _id: calendar_id,
+        owner: req.user.id
+      });
+      if (!calendar) {
+        return res.status(404).json({
+          message: 'Calendar not found or you do not have permission to edit it.'
+        });
+      }
+
+      const member = calendar.sharedWith.find(
+        item => item.user.toString() === user_id.toString()
+      );
+      if (!member) {
+        return res.status(404).json({
+          message: 'Member not found in this calendar sharing list.'
+        });
+      }
+
+      member.role = role;
+      await calendar.save();
+
+      res.status(200).json({
+        message: 'Member updated successfully.',
+        sharedWith: calendar.sharedWith
+      });
+    } catch (error) {
+      console.error('[CalendarController.updateMember]:', error.message);
       res.status(500).json({
         message: 'Internal server error.'
       });

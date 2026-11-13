@@ -68,6 +68,11 @@ const isTagValid = (tag) => {
   return trimmed.length > 0 && trimmed.length <= 50;
 };
 
+const isActionValid = (action) => {
+  return typeof action === 'string'
+    && ['accept', 'decline'].includes(action);
+};
+
 module.exports = {
   isLoginValid,
   isEmailValid,
@@ -77,5 +82,6 @@ module.exports = {
   isColorValid,
   isRoleValid,
   isTypeValid,
-  isTagValid
+  isTagValid,
+  isActionValid
 };
