@@ -1,5 +1,6 @@
 const express = require('express');
 const CalendarController = require('../controllers/CalendarController');
+const EventController = require('../controllers/EventController');
 const { authorize } = require('../middlewares/authMiddleware');
 const { validateId } = require('../middlewares/validateId');
 
@@ -68,7 +69,7 @@ router.post(
   '/:calendar_id/events',
   authorize,
   validateId('calendar_id'),
-  CalendarController.createEvent
+  EventController.createEvent
 );
 
 module.exports = router;

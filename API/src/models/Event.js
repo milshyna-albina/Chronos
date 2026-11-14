@@ -1,5 +1,23 @@
 const mongoose = require('mongoose');
 
+const recurrenceSchema = new mongoose.Schema({
+  frequency: {
+    type: String,
+    enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'],
+    default: 'none'
+  },
+  interval: {
+    type: Number,
+    default: 1
+  },
+  daysOfWeek: [{
+    type: Number
+  }],
+  until: {
+    type: Date
+  }
+}, { _id: false });
+
 const eventSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -62,7 +80,11 @@ const eventSchema = new mongoose.Schema({
   tags: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tag'
-  }]
+  }],
+  recurrence: {
+    type: recurrenceSchema,
+    default: () => ({ frequency: 'none' })
+  }
 }, { timestamps: true });
 
 eventSchema.index({ calendarId: 1, startDate: 1, endDate: 1 });
