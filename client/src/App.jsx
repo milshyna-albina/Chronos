@@ -6,9 +6,11 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage.jsx';
 import ConfirmEmailPage from './pages/auth/ConfirmEmailPage.jsx';
 import { AuthProvider } from './context/AuthProvider.jsx';
-import CalendarPage from './pages/CalendarPage';
+import CalendarPage from './pages/calendar/CalendarPage.jsx';
 import ProfilePage from './pages/users/ProfilePage.jsx';
 import UserProfilePage from './pages/users/UserProfilePage.jsx';
+import InvitePage from './pages/calendar/InvitePage.jsx';
+import JoinLinkPage from './pages/calendar/JoinLinkPage.jsx';
 
 function App() {
     return (
@@ -24,6 +26,8 @@ function App() {
                     <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/users/:id" element={<UserProfilePage />} />
+                    <Route path="/calendar/invites" element={<InvitePage />} />
+                    <Route path="/calendar/share" element={<JoinLinkPage />} />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>

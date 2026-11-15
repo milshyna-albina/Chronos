@@ -92,8 +92,8 @@ const sendResetPasswordEmail = async (email, token) => {
   });
 };
 
-const sendInviteEmail = async (email, calendar, owner) => {
-  const url = `${process.env.FRONTEND_URL}/calendar/invites`;
+const sendInviteEmail = async (email, calendar, owner, calendarId) => {
+  const url = `${process.env.FRONTEND_URL}/calendar/invites?id=${calendarId}`;
   const htmlContent = wrapLayout(`
       <p style="${titleStyle}">
           <strong>@${owner}</strong> has invited you to collaborate on the calendar

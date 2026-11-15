@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import {createCalendar, deleteCalendar, toggleCalendarVisibility, shareCalendar, removeSharedMember, updateCalendar} from '../../services/calendarService.js';
+import {createCalendar, deleteCalendar, toggleCalendarVisibility, removeSharedMember, updateCalendar, updateSharedMemberRole} from '../../services/calendarService.js';
 import CalendarForm from './CalendarForm.jsx';
 import ShareCalendarForm from './ShareCalendarForm.jsx';
 import CalendarDetails from './CalendarDetails.jsx';
 
 function CalendarList({ calendars, user, onUpdate }) {
     const [showCreateForm, setShowCreateForm] = useState(false);
-    const [shareCalendarId, setShareCalendarId] = useState(null);
+    const [shareCalendarObj, setShareCalendarObj] = useState(null);
     const [editingCalendar, setEditingCalendar] = useState(null);
     const [viewingCalendar, setViewingCalendar] = useState(null);
     const [error, setError] = useState('');
@@ -54,17 +54,6 @@ function CalendarList({ calendars, user, onUpdate }) {
         }
     };
 
-    const handleShareCalendar = async (shareData) => {
-        setError('');
-        try {
-            await shareCalendar(shareCalendarId, shareData);
-            setShareCalendarId(null);
-            onUpdate();
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to share calendar');
-        }
-    };
-
     const handleRemoveMember = async (calendarId, userId) => {
         setError('');
         try {
@@ -75,6 +64,16 @@ function CalendarList({ calendars, user, onUpdate }) {
         }
     };
 
+    const handleRoleChange = async (calendarId, userId, newRole) => {
+        setError('');
+        try {
+            await updateSharedMemberRole(calendarId, userId, newRole);
+            onUpdate();
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to update role');
+        }
+    };
+
     const startEditing = (calendar) => {
         setEditingCalendar(calendar);
     };
@@ -82,16 +81,19 @@ function CalendarList({ calendars, user, onUpdate }) {
     const sharedCalendars = calendars.shared.map(cal => {
         const myMemberData = cal.sharedWith?.find(member => {
             const memberId = member.user?.id || member.user;
-            const currentUserId = user?.id || user?.id;
+            const currentUserId = user?.id;
             return String(memberId) === String(currentUserId);
         });
         return {
             ...cal,
             myRole: myMemberData?.role,
+            myStatus: myMemberData?.status,
             myIsHidden: myMemberData?.isHidden ?? false,
             isEditor: myMemberData?.role === 'editor'
         };
     });
+
+    const acceptedShared = sharedCalendars.filter(cal => cal.myStatus === 'accepted');
 
     const getMemberName = (member) => {
         const memberObj = member.user;
@@ -122,7 +124,7 @@ function CalendarList({ calendars, user, onUpdate }) {
                             <button type="button" onClick={() => handleToggleVisibility(cal.id, cal.isHidden)}>{cal.isHidden ? 'Show' : 'Hide'}</button>
                         )}
 
-                        <button type="button" onClick={() => setShareCalendarId(cal.id)}>Share</button>
+                        <button type="button" onClick={() => setShareCalendarObj(cal)}>Share</button>
 
                         {!cal.isDefault && (
                             <button type="button" onClick={() => handleDeleteCalendar(cal.id)}>Delete</button>
@@ -145,7 +147,13 @@ function CalendarList({ calendars, user, onUpdate }) {
 
                                     return (
                                         <li key={displayId}>
-                                            {getMemberName(member)} ({member.role})
+                                            {getMemberName(member)} {member.status === 'pending' && '(pending)'}
+
+                                            <select value={member.role} onChange={(e) => handleRoleChange(cal.id, displayId, e.target.value)}>
+                                                <option value="viewer">Viewer</option>
+                                                <option value="editor">Editor</option>
+                                            </select>
+
                                             <button type="button" onClick={() => handleRemoveMember(cal.id, displayId)}>Remove</button>
                                         </li>
                                     );
@@ -156,18 +164,18 @@ function CalendarList({ calendars, user, onUpdate }) {
                 ))}
             </ul>
 
-            {shareCalendarId && (
+            {shareCalendarObj && (
                 <ShareCalendarForm
-                    onSubmit={handleShareCalendar}
-                    onCancel={() => setShareCalendarId(null)}
+                    calendar={shareCalendarObj}
+                    onUpdate={onUpdate}
+                    onCancel={() => setShareCalendarObj(null)}
                 />
             )}
 
             <h3>Shared</h3>
-
-            {sharedCalendars.length > 0 ? (
+            {acceptedShared.length > 0 ? (
                 <ul>
-                    {sharedCalendars.map(cal => (
+                    {acceptedShared.map(cal => (
                         <li key={cal.id}>
                             {cal.name} ({cal.myRole})
                             <button type="button" onClick={() => setViewingCalendar(cal)}>Details</button>

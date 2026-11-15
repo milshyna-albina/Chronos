@@ -369,7 +369,7 @@ class CalendarController {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-      await sendInviteEmail(email, calendar.name, calendar.owner.login);
+      await sendInviteEmail(email, calendar.name, calendar.owner.login, calendar._id);
 
       calendar.sharedWith.push({
         user: user._id,
@@ -582,7 +582,8 @@ class CalendarController {
       }
       res.status(200).json({
         message: 'Joined to the calendar successfully.',
-        calendarId: calendar._id
+        calendarId: calendar._id,
+        calendarName: calendar.name
       });
     } catch (error) {
       console.error('[CalendarController.joinViaLink]:', error.message);
