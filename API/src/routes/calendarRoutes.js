@@ -71,5 +71,19 @@ router.post(
   validateId('calendar_id'),
   EventController.createEvent
 );
+router.patch(
+  '/:calendar_id/events/:event_id',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  EventController.updateEvent
+);
+router.delete(
+  '/:calendar_id/events/:event_id',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  EventController.deleteEvent
+);
 
 module.exports = router;

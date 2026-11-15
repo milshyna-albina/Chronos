@@ -45,15 +45,6 @@ const isColorValid = (color) => {
   return /^#([a-fA-F0-9]{3}){1,2}$/.test(color);
 };
 
-const isRoleValid = (role) => {
-  return typeof role === 'string' && ['editor', 'viewer'].includes(role);
-};
-
-const isTypeValid = (type) => {
-  return typeof type === 'string'
-         && ['arrangement', 'reminder', 'task'].includes(type);
-};
-
 const isTagValid = (tag) => {
   if (!tag || typeof tag !== 'string') {
     return false;
@@ -63,8 +54,24 @@ const isTagValid = (tag) => {
   return trimmed.length > 0 && trimmed.length <= 50;
 };
 
+const allowedWrapper = (field, allowed) => {
+  return typeof field === 'string' && allowed.includes(field);
+};
+
+const isRoleValid = (role) => {
+  return allowedWrapper(role, ['editor', 'viewer']);
+};
+
+const isTypeValid = (type) => {
+  return allowedWrapper(type, ['arrangement', 'reminder', 'task']);
+};
+
 const isActionValid = (action) => {
-  return typeof action === 'string' && ['accept', 'decline'].includes(action);
+  return allowedWrapper(action, ['accept', 'decline']);
+};
+
+const isChannelValid = (channel) => {
+  return allowedWrapper(channel, ['none', 'email', 'in-app', 'both']);
 };
 
 const validateRecurrence = (recurrence, startDate) => {
@@ -131,9 +138,10 @@ module.exports = {
   isNameValid,
   isDescriptionValid,
   isColorValid,
+  isTagValid,
   isRoleValid,
   isTypeValid,
-  isTagValid,
   isActionValid,
+  isChannelValid,
   validateRecurrence
 };

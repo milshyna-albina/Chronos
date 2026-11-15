@@ -65,6 +65,10 @@ const eventSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  color: {
+    type: String,
+    default: ''
+  },
   isNotified: {
     type: Boolean,
     default: false
@@ -73,9 +77,14 @@ const eventSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  color: {
+  notificationChannel: {
     type: String,
-    default: ''
+    enum: ['none', 'email', 'in-app', 'both'],
+    default: 'in-app'
+  },
+  reminderMinutesBefore: {
+    type: Number,
+    default: 15
   },
   tags: [{
     type: mongoose.Schema.Types.ObjectId,
