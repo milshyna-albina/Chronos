@@ -18,6 +18,27 @@ const recurrenceSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+const participantSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  role: {
+    type: String,
+    enum: ['editor', 'viewer'],
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted'],
+    default: 'pending'
+  },
+  expiresAt: {
+    type: Date
+  }
+}, { timestamps: true, _id: false });
+
 const eventSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -93,7 +114,22 @@ const eventSchema = new mongoose.Schema({
   recurrence: {
     type: recurrenceSchema,
     default: () => ({ frequency: 'none' })
-  }
+  },
+  isPublicEnabled: {
+    type: Boolean,
+    default: false
+  },
+  shareToken: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  publicRole: {
+    type: String,
+    enum: ['editor', 'viewer'],
+    default: 'viewer'
+  },
+  participants: [participantSchema]
 }, { timestamps: true });
 
 eventSchema.index({ calendarId: 1, startDate: 1, endDate: 1 });

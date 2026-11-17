@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const Calendar = require('../models/Calendar');
 const Event = require('../models/Event');
 const User = require('../models/User');
-const { getEventsForCalendars } = require('../utils/eventService');
+const { getEventsForCalendars, getInvitedEvents } = require('../services/eventService');
 const { sendInviteEmail } = require('../utils/mail');
 const {
   isNameValid,
@@ -73,9 +73,12 @@ class CalendarController {
         }
       });
 
+      const invitedEvents = await getInvitedEvents(calendarIds, req.user.id);
+
       res.status(200).json({
         owned: ownedCalendars,
-        shared: sharedCalendars
+        shared: sharedCalendars,
+        invitedEvents: invitedEvents
       });
     } catch (error) {
       console.error('[CalendarController.getCalendarsWithEvents]:', error.message);
@@ -386,8 +389,12 @@ class CalendarController {
 
       const calendar = await Calendar.findOne({
         _id: calendar_id,
-        'sharedWith.user': req.user.id,
-        'sharedWith.status': 'pending',
+        sharedWith: {
+          $elemMatch: {
+            user: req.user.id,
+            status: 'pending'
+          }
+        }
       });
       if (!calendar) {
         return res.status(404).json({
@@ -636,6 +643,12 @@ class CalendarController {
       if (!isOwner && !isSelfRemoval) {
         return res.status(403).json({
           message: 'You do not have permission to remove this member.'
+        });
+      }
+
+      if (calendar.owner.toString() === user_id.toString()) {
+        return res.status(400).json({
+          message: 'Calendar owner cannot be removed from sharing list.'
         });
       }
 

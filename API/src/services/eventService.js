@@ -78,6 +78,21 @@ const getEventsForCalendars = async (calendarIds, start, end, userId) => {
   return eventsByCalendarId;
 };
 
+const getInvitedEvents = async (calendarIds, userId) => {
+  const rawEvents = await Event.find({
+    'participants.user': userId,
+    calendarId: { $nin: calendarIds }
+  })
+  .populate('createdBy', 'login email')
+  .populate({
+    path: 'tags',
+    match: { userId: userId }
+  });
+
+  return rawEvents.map(e => e.toJSON());
+};
+
 module.exports = {
-  getEventsForCalendars
+  getEventsForCalendars,
+  getInvitedEvents
 };

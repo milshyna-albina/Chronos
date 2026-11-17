@@ -4,12 +4,15 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const initDB = require('./config/db');
+require('./services/agendaService');
 
 const requestLogger = require('./middlewares/requestLogger');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const tagRoutes = require('./routes/tagRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 
 dotenv.config();
 
@@ -33,7 +36,9 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/calendars', calendarRoutes);
+app.use('/api/events', eventRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 async function start() {
   await initDB();

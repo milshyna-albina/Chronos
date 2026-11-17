@@ -85,5 +85,49 @@ router.delete(
   validateId('event_id'),
   EventController.deleteEvent
 );
+router.post(
+  '/:calendar_id/events/:event_id/share',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  EventController.shareEvent
+);
+router.patch(
+  '/:calendar_id/events/:event_id/invites',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  EventController.respondToInvite
+);
+router.post(
+  '/:calendar_id/events/:event_id/link',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  EventController.generateShareLink
+);
+router.delete(
+  '/:calendar_id/events/:event_id/link',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  EventController.disableShareLink
+);
+router.patch(
+  '/:calendar_id/events/:event_id/share/:user_id',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  validateId('user_id'),
+  EventController.updateMember
+);
+router.delete(
+  '/:calendar_id/events/:event_id/share/:user_id',
+  authorize,
+  validateId('calendar_id'),
+  validateId('event_id'),
+  validateId('user_id'),
+  EventController.removeMember
+);
 
 module.exports = router;

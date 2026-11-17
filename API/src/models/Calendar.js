@@ -23,16 +23,7 @@ const sharedMemberSchema = new mongoose.Schema({
   expiresAt: {
     type: Date
   }
-}, { timestamps: true });
-
-sharedMemberSchema.set('toJSON', {
-  virtuals: true,
-  versionKey: false,
-  transform: function (doc, ret) {
-    ret.id = ret._id;
-    delete ret._id;
-  }
-});
+}, { timestamps: true, _id: false });
 
 const calendarSchema = new mongoose.Schema({
   name: {
