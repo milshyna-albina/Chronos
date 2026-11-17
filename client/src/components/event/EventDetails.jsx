@@ -1,4 +1,4 @@
-function EventDetails({ event, onClose }) {
+function EventDetails({ event, onClose, onEdit, onDelete }) {
     return (
         <div>
             <h3>Event details</h3>
@@ -20,6 +20,16 @@ function EventDetails({ event, onClose }) {
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+            <p>
+                Notification: {event.notificationChannel}
+                {event.notificationChannel !== 'none' && ` (${event.reminderMinutesBefore} min before)`}
+            </p>
+            {event.isEditable && (
+                <div>
+                    <button type="button" onClick={() => onEdit(event)}>Edit</button>
+                    <button type="button" onClick={() => onDelete(event.calendarId, event.id)}>Delete</button>
                 </div>
             )}
             <button onClick={onClose}>Close</button>

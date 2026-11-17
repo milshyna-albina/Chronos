@@ -17,6 +17,12 @@ const getEventsForCalendars = async (calendarIds, start, end, userId) => {
       {
         startDate: { $lte: end }, // field: (less than or equal) value
         endDate: { $gte: start } // field: (greater than or equal) value
+      },
+      {
+        startDate: { $lte: end },
+        'recurrence.frequency': {
+          $in: ['daily', 'weekly', 'monthly', 'yearly']
+        }
       }
     ]
   };

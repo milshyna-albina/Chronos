@@ -246,7 +246,7 @@ class EventController {
         event.name = name;
       }
       if (description !== undefined) {
-        if (!isDescriptionValid(description)) {
+        if (description !== '' && !isDescriptionValid(description)) {
           return res.status(400).json({
             message: 'Description must not be empty.'
           });
@@ -285,7 +285,7 @@ class EventController {
         event.isCompleted = isCompleted;
       }
       if (location !== undefined) {
-        if (!isDescriptionValid(location)) {
+        if (location !== '' && !isDescriptionValid(location)) {
           return res.status(400).json({
             message: 'Location must not be empty.'
           });

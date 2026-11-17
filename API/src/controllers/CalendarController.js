@@ -160,8 +160,8 @@ class CalendarController {
         }
         calendar.name = name;
       }
-      if (description) {
-        if (!isDescriptionValid(description)) {
+      if (description !== undefined) {
+        if (description !== '' && !isDescriptionValid(description)) {
           return res.status(400).json({
             message: 'Description must not be empty.'
           });

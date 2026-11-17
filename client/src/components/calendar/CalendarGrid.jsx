@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '../../context/AuthContext.js';
-import { getCalendarsWithEvents } from '../../services/calendarService.js';
+import { getCalendarsWithEvents, deleteEvent } from '../../services/calendarService.js';
 import CalendarList from './CalendarList.jsx';
 import EventForm from '../event/EventForm.jsx';
 import EventDetails from '../event/EventDetails.jsx';
@@ -14,6 +14,7 @@ function CalendarGrid() {
     const [error, setError] = useState('');
     const [selectedDate, setSelectedDate] = useState(null);
     const [viewingEvent, setViewingEvent] = useState(null);
+    const [editingEvent, setEditingEvent] = useState(null);
     const [viewMode, setViewMode] = useState('month');
     const getYear = currentDate.getFullYear();
     const getMonth = currentDate.getMonth();
@@ -45,6 +46,7 @@ function CalendarGrid() {
         }
         setSelectedDate(null);
         setViewingEvent(null);
+        setEditingEvent(null);
     };
 
     const handleNext = () => {
@@ -57,17 +59,20 @@ function CalendarGrid() {
         }
         setSelectedDate(null);
         setViewingEvent(null);
+        setEditingEvent(null);
     };
 
     const handleDayClick = (dayObj) => {
         setSelectedDate(dayObj.fullDate);
         setViewingEvent(null);
+        setEditingEvent(null);
     };
 
     const handleEventClick = (e, event) => {
         e.stopPropagation();
         setViewingEvent(event);
         setSelectedDate(null);
+        setEditingEvent(null);
     };
 
     const handleMonthSelect = (monthIndex) => {
@@ -75,9 +80,15 @@ function CalendarGrid() {
         setCurrentDate(new Date(getYear, monthIndex, 1));
     };
 
-    const handleEventCreated = () => {
-        setSelectedDate(null);
-        fetchCalendarData();
+    const handleDeleteEvent = async (calendarId, eventId) => {
+        setError('');
+        try {
+            await deleteEvent(calendarId, eventId);
+            setViewingEvent(null);
+            fetchCalendarData();
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to delete event');
+        }
     };
 
     const weeks = generateMonthGrid(currentDate);
@@ -90,9 +101,11 @@ function CalendarGrid() {
             const creatorName = creatorObj?.login || creatorObj?.email || 'Me';
             return {
                 ...event,
+                calendarId: calendar.id,
                 displayColor: event.color || calendar.color,
                 calendarName: calendar.name,
-                eventCreator: creatorName
+                eventCreator: creatorName,
+                isEditable: true
             };
         });
     });
@@ -100,7 +113,7 @@ function CalendarGrid() {
     const sharedEvents = calendars.shared.flatMap(calendar => {
         const myMemberData = calendar.sharedWith?.find(m => {
             const memberId = m.user?.id || m.user;
-            const currentUserId = user?.id || user?.id;
+            const currentUserId = user?.id;
             return String(memberId) === String(currentUserId);
         });
         if (myMemberData?.isHidden) return [];
@@ -109,9 +122,11 @@ function CalendarGrid() {
             const creatorName = creatorObj?.login || creatorObj?.email || 'Unknown';
             return {
                 ...event,
+                calendarId: calendar.id,
                 displayColor: event.color || calendar.color,
                 calendarName: calendar.name,
-                eventCreator: creatorName
+                eventCreator: creatorName,
+                isEditable: myMemberData?.role === 'editor'
             };
         });
     });
@@ -140,9 +155,9 @@ function CalendarGrid() {
             />
 
             <div>
-                <button onClick={() => { setViewMode('week'); setSelectedDate(null); setViewingEvent(null); }}>Week</button>
-                <button onClick={() => { setViewMode('month'); setSelectedDate(null); setViewingEvent(null); }}>Month</button>
-                <button onClick={() => { setViewMode('year'); setSelectedDate(null); setViewingEvent(null); }}>Year</button>
+                <button onClick={() => { setViewMode('week'); setSelectedDate(null); setViewingEvent(null); setEditingEvent(null); }}>Week</button>
+                <button onClick={() => { setViewMode('month'); setSelectedDate(null); setViewingEvent(null); setEditingEvent(null); }}>Month</button>
+                <button onClick={() => { setViewMode('year'); setSelectedDate(null); setViewingEvent(null); setEditingEvent(null); }}>Year</button>
             </div>
 
             <div>
@@ -165,13 +180,21 @@ function CalendarGrid() {
                 onMonthSelect={handleMonthSelect}
             />
 
-            {selectedDate ? (
+            {(selectedDate || editingEvent) ? (
                 <EventForm
                     selectedDate={selectedDate}
+                    eventToEdit={editingEvent}
                     calendars={calendars}
                     user={user}
-                    onSuccess={handleEventCreated}
-                    onCancel={() => setSelectedDate(null)}
+                    onSuccess={() => {
+                        setSelectedDate(null);
+                        setEditingEvent(null);
+                        fetchCalendarData();
+                    }}
+                    onCancel={() => {
+                        setSelectedDate(null);
+                        setEditingEvent(null);
+                    }}
                 />
             ) : (
                 <button onClick={() => setSelectedDate(new Date())}>Create event</button>
@@ -181,6 +204,11 @@ function CalendarGrid() {
                 <EventDetails
                     event={viewingEvent}
                     onClose={() => setViewingEvent(null)}
+                    onEdit={(ev) => {
+                        setEditingEvent(ev);
+                        setViewingEvent(null);
+                    }}
+                    onDelete={handleDeleteEvent}
                 />
             )}
         </div>

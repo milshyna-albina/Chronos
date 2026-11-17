@@ -64,3 +64,13 @@ export const joinViaLink = async (token) => {
     const response = await api.post(`/calendars/share/${token}`);
     return response.data;
 };
+
+export const updateEvent = async (calendarId, eventId, eventData) => {
+    const response = await api.patch(`/calendars/${calendarId}/events/${eventId}`, eventData);
+    return response.data;
+};
+
+export const deleteEvent = async (calendarId, eventId) => {
+    const response = await api.delete(`/calendars/${calendarId}/events/${eventId}`);
+    return response.data;
+};
