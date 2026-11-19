@@ -29,6 +29,7 @@ const getEventsForCalendars = async (calendarIds, start, end, userId) => {
 
   const rawEvents = await Event.find(eventQuery)
     .populate('createdBy', 'login email')
+    .populate('participants.user', 'login email')
     .populate({
       path: 'tags',
       match: { userId: userId }
@@ -90,6 +91,8 @@ const getInvitedEvents = async (calendarIds, userId) => {
     calendarId: { $nin: calendarIds }
   })
   .populate('createdBy', 'login email')
+  .populate('participants.user', 'login email')
+  .populate('calendarId', 'name')
   .populate({
     path: 'tags',
     match: { userId: userId }

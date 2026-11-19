@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { createEvent, updateEvent } from '../../services/calendarService.js';
+import { createEvent, updateEvent } from '../../services/eventService.js';
 import { getTags } from '../../services/tagService.js';
 import {CALENDAR_COLOR} from "../../utils/colors.js";
 
@@ -37,6 +37,9 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
     const [interval, setIntervalValue] = useState(rec.interval || 1);
     const [daysOfWeek, setDaysOfWeek] = useState(rec.daysOfWeek || []);
     const [endsType, setEndsType] = useState(rec.until ? 'date' : 'never');
+    const isCurrentCalendarInList = allAvailableCalendars.some(
+        cal => String(cal.id) === String(selectedCalendarId)
+    );
 
     useEffect(() => {
         getTags().then(data => setAvailableTags(data.tags || [])).catch(console.error);
@@ -189,7 +192,7 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
             color: eventColor,
             recurrence: recurrenceData,
             notificationChannel: notificationChannel,
-            reminderMinutesBefore: parseInt(reminderMinutesBefore, 10)
+            reminderMinutesBefore: eventType === 'reminder' ? 0 : parseInt(reminderMinutesBefore, 10)
         };
 
         try {
@@ -211,6 +214,9 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
                 <div>
                     <label>Calendar</label>
                     <select value={selectedCalendarId} onChange={handleCalendarChange} disabled={!!eventToEdit}>
+                        {eventToEdit && !isCurrentCalendarInList && (
+                            <option value={eventToEdit.calendarId}>{eventToEdit.calendarName}</option>
+                        )}
                         {calendars.owned.map(cal => (
                             <option key={cal.id} value={cal.id}>{cal.name}</option>
                         ))}
@@ -289,7 +295,7 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
                     </select>
                 </div>
 
-                {notificationChannel !== 'none' && (
+                {notificationChannel !== 'none' && eventType !== 'reminder' && (
                     <div>
                         <label>Remind before </label>
                         <input type="number" min="1" value={reminderMinutesBefore} onChange={(e) => setReminderMinutesBefore(e.target.value)} required />

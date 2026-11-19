@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { joinViaLink } from '../../services/calendarService.js';
+import { joinCalendarViaLink } from '../../services/calendarService.js';
+import { joinEventViaLink } from '../../services/eventService.js';
 import { useAuthContext } from '../../context/AuthContext.js';
 
-function JoinLinkPage() {
+function JoinLinkPage({ type }) {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
     const navigate = useNavigate();
@@ -19,15 +20,20 @@ function JoinLinkPage() {
             return;
         }
 
-        if (!token) return;
+        if (!token || requestSent.current) return;
         requestSent.current = true;
 
-        joinViaLink(token)
-            .then((res) => setMessage(`You have successfully joined the calendar "${res.calendarName}"!`))
+        const joinFunction = type === 'event' ? joinEventViaLink : joinCalendarViaLink;
+        joinFunction(token)
+            .then((res) => {
+                const itemType = type === 'event' ? 'event' : 'calendar';
+                const itemName = type === 'event' ? res.eventName : res.calendarName;
+                setMessage(`You have successfully joined the ${itemType} "${itemName}"!`);
+            })
             .catch(err => {
-                setMessage(err.response?.data?.message || 'Failed to join the calendar.');
+                setMessage(err.response?.data?.message || 'Failed to join.');
             });
-    }, [token, navigate, user, loading]);
+    }, [token, navigate, user, loading, type]);
 
     return (
         <div>

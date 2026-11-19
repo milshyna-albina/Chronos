@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {createCalendar, deleteCalendar, toggleCalendarVisibility, removeSharedMember, updateCalendar, updateSharedMemberRole} from '../../services/calendarService.js';
 import CalendarForm from './CalendarForm.jsx';
-import ShareCalendarForm from './ShareCalendarForm.jsx';
+import ShareForm from '../ShareForm.jsx';
 import CalendarDetails from './CalendarDetails.jsx';
 
 function CalendarList({ calendars, user, onUpdate }) {
@@ -25,7 +25,7 @@ function CalendarList({ calendars, user, onUpdate }) {
     const handleUpdateCalendar = async (calendarData) => {
         setError('');
         try {
-            await updateCalendar(editingCalendar.id, calendarData);
+            await updateCalendar(calendarData.id, calendarData);
             setEditingCalendar(null);
             onUpdate();
         } catch (err) {
@@ -165,7 +165,8 @@ function CalendarList({ calendars, user, onUpdate }) {
             </ul>
 
             {shareCalendarObj && (
-                <ShareCalendarForm
+                <ShareForm
+                    type="calendar"
                     calendar={shareCalendarObj}
                     onUpdate={onUpdate}
                     onCancel={() => setShareCalendarObj(null)}

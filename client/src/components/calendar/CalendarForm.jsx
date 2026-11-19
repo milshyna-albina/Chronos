@@ -8,7 +8,7 @@ function CalendarForm({ calendar, onSubmit, onCancel }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit({ name, description, color });
+        onSubmit({ id: calendar?.id, name, description, color });
     };
 
     return (

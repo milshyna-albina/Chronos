@@ -35,11 +35,6 @@ export const removeSharedMember = async (calendarId, userId) => {
     return response.data;
 };
 
-export const createEvent = async (calendarId, eventData) => {
-    const response = await api.post(`/calendars/${calendarId}/events`, eventData);
-    return response.data;
-};
-
 export const updateSharedMemberRole = async (calendarId, userId, role) => {
     const response = await api.patch(`/calendars/${calendarId}/share/${userId}`, { role });
     return response.data;
@@ -60,17 +55,7 @@ export const disableShareLink = async (calendarId) => {
     return response.data;
 };
 
-export const joinViaLink = async (token) => {
+export const joinCalendarViaLink = async (token) => {
     const response = await api.post(`/calendars/share/${token}`);
-    return response.data;
-};
-
-export const updateEvent = async (calendarId, eventId, eventData) => {
-    const response = await api.patch(`/calendars/${calendarId}/events/${eventId}`, eventData);
-    return response.data;
-};
-
-export const deleteEvent = async (calendarId, eventId) => {
-    const response = await api.delete(`/calendars/${calendarId}/events/${eventId}`);
     return response.data;
 };

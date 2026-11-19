@@ -1,16 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '../../context/AuthContext.js';
-import { getCalendarsWithEvents, deleteEvent } from '../../services/calendarService.js';
+import { getCalendarsWithEvents } from '../../services/calendarService.js';
+import { deleteEvent } from '../../services/eventService.js';
 import CalendarList from './CalendarList.jsx';
 import EventForm from '../event/EventForm.jsx';
 import EventDetails from '../event/EventDetails.jsx';
 import CalendarView from './CalendarView.jsx';
 import {monthNames, dayNames, getWeekNumber, getFetchDates, generateMonthGrid, generateWeekGrid} from '../../utils/calendar.js';
+import {CALENDAR_COLOR} from "../../utils/colors.js";
+
+const prepareEvent = (event, calendar, permissions) => ({
+    ...event,
+    calendarId: calendar.id,
+    displayColor: event.color || calendar.color || CALENDAR_COLOR,
+    calendarName: calendar.name,
+    eventCreator: event.createdBy?.login || event.createdBy?.email,
+    ...permissions
+});
 
 function CalendarGrid() {
     const { user } = useAuthContext();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [calendars, setCalendars] = useState({ owned: [], shared: [] });
+    const [calendars, setCalendars] = useState({ owned: [], shared: [], invitedEvents: [] });
     const [error, setError] = useState('');
     const [selectedDate, setSelectedDate] = useState(null);
     const [viewingEvent, setViewingEvent] = useState(null);
@@ -96,42 +107,54 @@ function CalendarGrid() {
 
     const ownedEvents = calendars.owned.flatMap(calendar => {
         if (calendar.isHidden) return [];
-        return (calendar.events || []).map(event => {
-            const creatorObj = event.createdBy;
-            const creatorName = creatorObj?.login || creatorObj?.email || 'Me';
-            return {
-                ...event,
-                calendarId: calendar.id,
-                displayColor: event.color || calendar.color,
-                calendarName: calendar.name,
-                eventCreator: creatorName,
-                isEditable: true
-            };
-        });
+        return (calendar.events || []).map(event =>
+            prepareEvent(event, calendar, {
+                isEditable: true,
+                isDeletable: true,
+                isShareable: true
+            })
+        );
     });
 
     const sharedEvents = calendars.shared.flatMap(calendar => {
-        const myMemberData = calendar.sharedWith?.find(m => {
-            const memberId = m.user?.id || m.user;
-            const currentUserId = user?.id;
-            return String(memberId) === String(currentUserId);
-        });
+        const myMemberData = calendar.sharedWith?.find(
+            member => String(member.user?.id || member.user) === String(user?.id)
+        );
         if (myMemberData?.isHidden) return [];
         return (calendar.events || []).map(event => {
-            const creatorObj = event.createdBy;
-            const creatorName = creatorObj?.login || creatorObj?.email || 'Unknown';
-            return {
-                ...event,
-                calendarId: calendar.id,
-                displayColor: event.color || calendar.color,
-                calendarName: calendar.name,
-                eventCreator: creatorName,
-                isEditable: myMemberData?.role === 'editor'
-            };
+            const isCreator = String(event.createdBy?.id || event.createdBy) === String(user?.id);
+            const isCalendarEditor = myMemberData?.role === 'editor';
+            const isEventEditor = event.participants?.some(
+                p => String(p.user?.id || p.user) === String(user?.id) && p.role === 'editor'
+            );
+
+            return prepareEvent(event, calendar, {
+                isEditable: isCalendarEditor || isCreator || isEventEditor,
+                isDeletable: isCalendarEditor || isCreator,
+                isShareable: isCalendarEditor || isCreator || isEventEditor
+            });
         });
     });
 
-    const allEvents = [...ownedEvents, ...sharedEvents];
+    const invitedEventsList = (calendars.invitedEvents || []).map(event => {
+        const myData = event.participants?.find(
+            participant => String(participant.user?.id || participant.user) === String(user?.id)
+        );
+        const isCreator = String(event.createdBy?.id || event.createdBy) === String(user?.id);
+        const isEventEditor = myData?.role === 'editor';
+
+        return prepareEvent(event, {
+            id: event.calendarId?.id,
+            name: event.calendarId?.name,
+            color: CALENDAR_COLOR
+        }, {
+            isEditable: isEventEditor || isCreator,
+            isDeletable: isCreator,
+            isShareable: isEventEditor || isCreator
+        });
+    });
+
+    const allEvents = [...ownedEvents, ...sharedEvents, ...invitedEventsList];
 
     const getEventsForDay = (fullDate) => {
         const targetTime = new Date(fullDate.getFullYear(), fullDate.getMonth(), fullDate.getDate()).getTime();
@@ -209,6 +232,7 @@ function CalendarGrid() {
                         setViewingEvent(null);
                     }}
                     onDelete={handleDeleteEvent}
+                    onUpdate={fetchCalendarData}
                 />
             )}
         </div>

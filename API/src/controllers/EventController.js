@@ -14,9 +14,8 @@ const {
   validateRecurrence, isRoleValid, isActionValid
 } = require('../utils/validator');
 const {
-  canUserEditEvent,
-  canUserDeleteEvent,
-  canUserShareEvent
+  canUserManageEvent,
+  canUserDeleteEvent
 } = require('../utils/permissions');
 
 class EventController {
@@ -156,7 +155,7 @@ class EventController {
       }
 
       let channel = notificationChannel;
-      if (type === 'arrangement') {
+      if (type === 'arrangement' && !isChannelValid(channel)) {
         channel = 'in-app';
       } else if (type === 'reminder' && !isChannelValid(channel)) {
         channel = 'email';
@@ -225,7 +224,7 @@ class EventController {
           message: 'Event not found.'
         });
       }
-      if (!canUserEditEvent(req.user.id, calendar, event)) {
+      if (!canUserManageEvent(req.user.id, calendar, event)) {
         return res.status(403).json({
           message: 'You do not have permission to edit this event.'
         });
@@ -391,15 +390,15 @@ class EventController {
       await event.save();
 
       await agenda.cancel({ 'data.event_id': event_id });
-      if (!event.isNotified && event_id.notificationChannel !== 'none') {
-        const minutesBefore = newEvent.type === 'reminder'
-          ? 0 : (newEvent.reminderMinutesBefore || 0)
+      if (!event.isNotified && event.notificationChannel !== 'none') {
+        const minutesBefore = event.type === 'reminder'
+          ? 0 : (event.reminderMinutesBefore || 0)
         const reminderTime = new Date(
-          newEvent.startDate.getTime() - (minutesBefore * 60 * 1000)
+            event.startDate.getTime() - (minutesBefore * 60 * 1000)
         );
         if (reminderTime > new Date()) {
           await agenda.schedule(reminderTime, 'send-event-reminder', {
-            event_id: newEvent._id
+            event_id: event._id
           });
         }
       }
@@ -492,7 +491,7 @@ class EventController {
           message: 'Event not found.'
         });
       }
-      if (!canUserShareEvent(req.user.id, calendar, event)) {
+      if (!canUserManageEvent(req.user.id, calendar, event)) {
         return res.status(403).json({
           message: 'You do not have permission to share this event.'
         });
@@ -510,9 +509,11 @@ class EventController {
         });
       }
 
-      const alreadyShared = event.participants.some(
-        item => item.user.toString() === user._id.toString()
-      );
+      const alreadyShared =
+        event.createdBy.toString() === user._id.toString() ||
+        event.participants.some(
+          item => item.user.toString() === user._id.toString()
+        );
       if (alreadyShared) {
         return res.status(400).json({
           message: 'Event is already shared with this user.'
@@ -651,7 +652,7 @@ class EventController {
           message: 'Event not found.'
         });
       }
-      if (!canUserShareEvent(req.user.id, calendar, event)) {
+      if (!canUserManageEvent(req.user.id, calendar, event)) {
         return res.status(403).json({
           message: 'You do not have permission to share this event.'
         });
@@ -701,7 +702,7 @@ class EventController {
           message: 'Event not found.'
         });
       }
-      if (!canUserShareEvent(req.user.id, calendar, event)) {
+      if (!canUserManageEvent(req.user.id, calendar, event)) {
         return res.status(403).json({
           message: 'You do not have permission to share this event.'
         });
@@ -763,7 +764,8 @@ class EventController {
       }
       res.status(200).json({
         message: 'Joined to the event successfully.',
-        eventId: event._id
+        eventId: event._id,
+        eventName: event.name
       });
     } catch (error) {
       console.error('[EventController.joinViaLink]:', error.message);
@@ -804,7 +806,7 @@ class EventController {
           message: 'Event not found.'
         });
       }
-      if (!canUserShareEvent(req.user.id, calendar, event)) {
+      if (!canUserManageEvent(req.user.id, calendar, event)) {
         return res.status(403).json({
           message: 'You do not have permission to edit this event.'
         });
@@ -854,7 +856,7 @@ class EventController {
         });
       }
 
-      const canManage = canUserShareEvent(req.user.id, calendar, event);
+      const canManage = canUserManageEvent(req.user.id, calendar, event);
       const isSelfRemoval = req.user.id.toString() === user_id.toString();
 
       if (!canManage && !isSelfRemoval) {

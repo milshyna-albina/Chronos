@@ -1,4 +1,4 @@
-const canUserEditEvent = (userId, calendar, event) => {
+const canUserManageEvent = (userId, calendar, event) => {
   const isCalendarOwner = calendar.owner.toString() === userId.toString();
   const isCalendarEditor = calendar.sharedWith.some(
     m => m.user.toString() === userId.toString() && m.role === 'editor'
@@ -31,15 +31,7 @@ const canUserDeleteEvent = (userId, calendar, event) => {
   return Boolean(isCalendarEditor);
 };
 
-const canUserShareEvent = (userId, calendar, event) => {
-  const isCalendarOwner = calendar.owner.toString() === userId.toString();
-  const isEventCreator = event.createdBy.toString() === userId.toString();
-
-  return isCalendarOwner || isEventCreator;
-};
-
 module.exports = {
-  canUserEditEvent,
-  canUserDeleteEvent,
-  canUserShareEvent
+  canUserManageEvent,
+  canUserDeleteEvent
 };

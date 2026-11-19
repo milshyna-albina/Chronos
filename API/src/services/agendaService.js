@@ -16,6 +16,7 @@ agenda.define('send-event-reminder', async (job) => {
     const { event_id } = job.attrs.data;
     const event = await Event.findById(event_id)
       .populate('createdBy', 'login email')
+      .populate('participants.user', 'login email')
       .populate({
         path: 'calendarId',
         populate: [
