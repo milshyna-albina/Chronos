@@ -134,6 +134,7 @@ const eventSchema = new mongoose.Schema({
 
 eventSchema.index({ calendarId: 1, startDate: 1, endDate: 1 });
 eventSchema.index({ tags: 1 });
+eventSchema.index({ 'participants.user': 1, 'recurrence.frequency': 1, startDate: 1});
 
 eventSchema.set('toJSON', {
   virtuals: true,

@@ -19,21 +19,21 @@ class CalendarController {
 
       if (!startDate || !endDate) {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
+        const year = now.getUTCFullYear();
+        const month = now.getUTCMonth();
 
-        startDate = new Date(year, month, 1).toISOString();
-        endDate = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
+        startDate = new Date(Date.UTC(year, month, 1));
+        endDate = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
       } else {
-        const parsedStart = new Date(startDate);
-        const parsedEnd = new Date(endDate);
+        startDate = new Date(startDate);
+        endDate = new Date(endDate);
 
-        if (isNaN(parsedStart.getTime()) || isNaN(parsedEnd.getTime())) {
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
           return res.status(400).json({
             message: 'Invalid date format.'
           });
         }
-        if (parsedStart > parsedEnd) {
+        if (startDate > endDate) {
           return res.status(400).json({
             message: "'startDate' cannot be later than 'endDate'."
           });
@@ -43,22 +43,26 @@ class CalendarController {
       const calendars = await Calendar.find({
         $or: [
           { owner: req.user.id },
-          { 'sharedWith.user': req.user.id }
+          {
+            sharedWith: {
+              $elemMatch: {
+                user: req.user.id,
+                status: 'accepted'
+              }
+            }
+          }
         ]
       }).populate('owner', 'login email avatarPath')
         .populate('sharedWith.user', 'login email avatarPath');
 
-      if (calendars.length === 0) {
-        return res.status(200).json({ owned: [], shared: [] });
-      }
-
       const calendarIds = calendars.map(c => c._id);
-      const eventsByCalendarId = await getEventsForCalendars(
-        calendarIds,
-        new Date(startDate),
-        new Date(endDate),
-        req.user.id
-      );
+      const [eventsByCalendarId, invitedEvents] = await Promise.all([
+        calendarIds.length > 0
+        ? getEventsForCalendars(calendarIds, startDate, endDate, req.user.id)
+        : Promise.resolve({}),
+        getInvitedEvents(calendarIds, startDate, endDate, req.user.id)
+      ]);
+
       const ownedCalendars = [];
       const sharedCalendars = [];
 
@@ -72,8 +76,6 @@ class CalendarController {
           sharedCalendars.push(calendar);
         }
       });
-
-      const invitedEvents = await getInvitedEvents(calendarIds, req.user.id);
 
       res.status(200).json({
         owned: ownedCalendars,

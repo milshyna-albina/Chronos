@@ -10,19 +10,81 @@ const FREQ_MAP = {
 };
 const DAY_MAP = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
 
+function buildRule(event) {
+  const ruleOptions = {
+    freq: FREQ_MAP[event.recurrence.frequency],
+    interval: event.recurrence.interval || 1,
+    dtstart: new Date(event.startDate),
+    until: event.recurrence.until ? new Date(event.recurrence.until) : undefined
+  };
+
+  if (Array.isArray(event.recurrence.daysOfWeek) && event.recurrence.daysOfWeek.length > 0) {
+    ruleOptions.byweekday = event.recurrence.daysOfWeek.map(d => DAY_MAP[d]);
+  }
+
+  return new RRule(ruleOptions);
+}
+
+function expandEvent(eventDoc, start, end) {
+  const event = eventDoc.toJSON() ? eventDoc.toJSON() : { ...eventDoc };
+
+  if (Array.isArray(event.tags)) {
+    event.tags = event.tags.filter(tag => tag !== null);
+  }
+
+  const hasRecurrence = event.recurrence && event.recurrence.frequency !== 'none';
+
+  if (!hasRecurrence) {
+    if (new Date(event.startDate) <= end && new Date(event.endDate) >= start) {
+      return [{ ...event, isRecurring: false}];
+    }
+    return [];
+  }
+
+  const rule = buildRule(event);
+  const duration = new Date(event.endDate).getTime() - new Date(event.startDate).getTime();
+  const queryStart = new Date(Math.max(0, start.getTime() - duration));
+  const occurrences = rule.between(queryStart, end, true);
+
+  const result = [];
+  for (const occStart of occurrences) {
+    const occEnd = new Date(occStart.getTime() + duration);
+    if (occStart <= end && occEnd >= start) {
+      result.push({
+        ...event,
+        startDate: occStart,
+        endDate: occEnd,
+        isRecurring: true
+      });
+    }
+  }
+
+  return result;
+}
+
 const getEventsForCalendars = async (calendarIds, start, end, userId) => {
+  if (!Array.isArray(calendarIds) || calendarIds.length === 0) {
+    return {};
+  }
+
   const eventQuery = {
     calendarId: { $in: calendarIds },
     $or: [
       {
+        'recurrence.frequency': 'none',
         startDate: { $lte: end }, // field: (less than or equal) value
         endDate: { $gte: start } // field: (greater than or equal) value
       },
       {
-        startDate: { $lte: end },
         'recurrence.frequency': {
           $in: ['daily', 'weekly', 'monthly', 'yearly']
-        }
+        },
+        startDate: { $lte: end },
+        $or: [
+          { 'recurrence.until': { $exists: false } },
+          { 'recurrence.until': null },
+          { 'recurrence.until': { $gte: start } }
+        ]
       }
     ]
   };
@@ -34,62 +96,51 @@ const getEventsForCalendars = async (calendarIds, start, end, userId) => {
       path: 'tags',
       match: { userId: userId }
     });
-  const events = [];
-
-  rawEvents.forEach(event => {
-    event.tags = event.tags.filter(tag => tag !== null);
-
-    if (!event.recurrence || event.recurrence.frequency === 'none') {
-      if (event.startDate <= end && event.endDate >= start) {
-        events.push(event.toJSON());
-      }
-      return;
-    }
-
-    const ruleOptions = {
-      freq: FREQ_MAP[event.recurrence.frequency],
-      interval: event.recurrence.interval || 1,
-      dtstart: new Date(event.startDate),
-      until: event.recurrence.until ? new Date(event.recurrence.until) : undefined
-    };
-
-    if (event.recurrence.daysOfWeek && event.recurrence.daysOfWeek.length > 0) {
-      ruleOptions.byweekday = event.recurrence.daysOfWeek.map(d => DAY_MAP[d]);
-    }
-
-    const rule = new RRule(ruleOptions);
-    const duration = new Date(event.endDate).getTime() - new Date(event.startDate).getTime();
-    const occurrences = rule.between(start, end, true);
-
-    occurrences.forEach(date => {
-      const endDate = new Date(date.getTime() + duration);
-      events.push({
-        ...event.toJSON(),
-        startDate: date,
-        endDate: endDate,
-        isRecurring: true
-      });
-    });
-  });
 
   const eventsByCalendarId = {};
 
-  events.forEach(event => {
+  rawEvents.forEach(event => {
     const calendarId = event.calendarId.toString();
     if (!eventsByCalendarId[calendarId]) {
       eventsByCalendarId[calendarId] = [];
     }
-    eventsByCalendarId[calendarId].push(event);
+    const occurrences = expandEvent(event, start, end);
+    eventsByCalendarId[calendarId].push(...occurrences);
   });
 
   return eventsByCalendarId;
 };
 
-const getInvitedEvents = async (calendarIds, userId) => {
-  const rawEvents = await Event.find({
-    'participants.user': userId,
-    calendarId: { $nin: calendarIds }
-  })
+const getInvitedEvents = async (calendarIds, start, end, userId) => {
+  const eventQuery = {
+    calendarId: { $nin: calendarIds },
+    participants: {
+      $elemMatch: {
+        user: userId,
+        status: 'accepted'
+      }
+    },
+    $or: [
+      {
+        'recurrence.frequency': 'none',
+        startDate: { $lte: end },
+        endDate: { $gte: start }
+      },
+      {
+        'recurrence.frequency': {
+          $in: ['daily', 'weekly', 'monthly', 'yearly']
+        },
+        startDate: { $lte: end },
+        $or: [
+          { 'recurrence.until': { $exists: false } },
+          { 'recurrence.until': null },
+          { 'recurrence.until': { $gte: start } }
+        ]
+      }
+    ]
+  };
+
+  const rawEvents = await Event.find(eventQuery)
   .populate('createdBy', 'login email')
   .populate('participants.user', 'login email')
   .populate('calendarId', 'name')
@@ -98,7 +149,12 @@ const getInvitedEvents = async (calendarIds, userId) => {
     match: { userId: userId }
   });
 
-  return rawEvents.map(e => e.toJSON());
+  const events = [];
+  for (const event of rawEvents) {
+    events.push(...expandEvent(event, start, end));
+  }
+
+  return events.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
 };
 
 module.exports = {
