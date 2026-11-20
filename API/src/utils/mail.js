@@ -92,12 +92,12 @@ const sendResetPasswordEmail = async (email, token) => {
   });
 };
 
-const sendInviteEmail = async (email, calendar, owner, calendarId) => {
-  const url = `${process.env.FRONTEND_URL}/calendar/invites?id=${calendarId}`;
+const sendInviteEmail = async (email, calendar, owner) => {
+  const url = `${process.env.FRONTEND_URL}/calendar/invites?id=${calendar.id}`;
   const htmlContent = wrapLayout(`
       <p style="${titleStyle}">
           <strong>@${owner}</strong> has invited you to collaborate on the calendar
-          <strong>"${calendar}"</strong>.
+          <strong>"${calendar.name}"</strong>.
       </p>
       <p style="margin: 0 0 25px 0; font-size: 14px; color: #806477;">
           You can accept or decline this request. This invitation will expire in
@@ -112,13 +112,55 @@ const sendInviteEmail = async (email, calendar, owner, calendarId) => {
 
   return sendEmail({
     to: email,
-    subject: `Calendar Invitation: ${calendar}`,
+    subject: `Calendar Invitation: ${calendar.name}`,
     html: htmlContent
   });
 };
 
+const sendInviteToEventEmail = async (email, event, user) => {
+  const url = `${process.env.FRONTEND_URL}/event/invites?id=${event.id}`;
+  const htmlContent = wrapLayout(`
+      <p style="${titleStyle}">
+          <strong>@${user}</strong> has invited you to collaborate on the event
+          <strong>"${event.name}"</strong>.
+      </p>
+      <p style="margin: 0 0 25px 0; font-size: 14px; color: #806477;">
+          You can accept or decline this request. This invitation will expire in
+          <strong>7 days</strong>.
+      </p>
+      <a
+          href="${url}"
+          style="${linkStyle}">
+          View Invitation
+      </a>
+  `, `If you were not expecting this invitation, you can safely ignore this email.`);
+
+  return sendEmail({
+    to: email,
+    subject: `Event Invitation: ${event.name}`,
+    html: htmlContent
+  });
+}
+
+const sendReminderEmail = async (email, event, time) => {
+  const htmlContent = wrapLayout(`
+      <p style="${titleStyle}">
+          Event <strong>"${event.name}"</strong>
+          ${time > 0 ? `will begin in ${time} minutes` : 'has begun'}.
+      </p>
+  `, ``);
+
+  return sendEmail({
+    to: email,
+    subject: `Event Reminder: ${event.name}`,
+    html: htmlContent
+  });
+}
+
 module.exports = {
   sendConfirmationEmail,
   sendResetPasswordEmail,
-  sendInviteEmail
+  sendInviteEmail,
+  sendInviteToEventEmail,
+  sendReminderEmail
 };

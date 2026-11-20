@@ -351,7 +351,11 @@ class CalendarController {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-      await sendInviteEmail(email, calendar.name, calendar.owner.login, calendar._id);
+      await sendInviteEmail(
+        email,
+        { id: calendar._id, name: calendar.name },
+        calendar.owner.login
+      );
 
       calendar.sharedWith.push({
         user: user._id,

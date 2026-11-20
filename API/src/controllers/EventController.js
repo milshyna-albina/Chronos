@@ -4,6 +4,7 @@ const Event = require('../models/Event');
 const Tag = require('../models/Tag');
 const User = require('../models/User');
 const agenda = require('../services/agendaService');
+const { sendInviteToEventEmail } = require('../utils/mail');
 const {
   isNameValid,
   isDescriptionValid,
@@ -524,7 +525,11 @@ class EventController {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-      //await sendInviteEmail(email, calendar.name, calendar.owner.login);
+      await sendInviteToEventEmail(
+        email,
+        { id: event._id, name: event.name },
+        req.user.login
+      );
 
       event.participants.push({
         user: user._id,

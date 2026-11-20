@@ -2,6 +2,7 @@ const { Agenda } = require('agenda');
 const { MongoBackend } = require('@agendajs/mongo-backend');
 const Event = require('../models/Event');
 const { sseService } = require('../services/sseService');
+const { sendReminderEmail } = require('../utils/mail');
 
 const agenda = new Agenda({
   backend: new MongoBackend({
@@ -58,8 +59,8 @@ agenda.define('send-event-reminder', async (job) => {
     const recipients = Array.from(recipientsMap.values());
     for (const r of recipients) {
       if (event.notificationChannel === 'email' || event.notificationChannel === 'both') {
-        //send email
-        console.log(`Email sent to ${r.email}`);
+        const time = event.type === 'reminder' ? 0 : event.reminderMinutesBefore;
+        await sendReminderEmail(r.email, { name: event.name }, time);
       }
 
       if (event.notificationChannel === 'in-app'
