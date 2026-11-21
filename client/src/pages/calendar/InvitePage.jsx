@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getCalendarsWithEvents, respondToInvite } from '../../services/calendarService.js';
+import { respondToEventInvite } from '../../services/eventService.js';
 import { useAuthContext } from '../../context/AuthContext.js';
 
-function InvitePage() {
+function InvitePage({ type }) {
     const { user } = useAuthContext();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -15,12 +16,24 @@ function InvitePage() {
     const fetchInvite = useCallback(() => {
         getCalendarsWithEvents('', '')
             .then(data => {
-                const invite = data.shared.find(cal => {
-                    const member = cal.sharedWith?.find(m =>
-                        String(m.user?.id) === String(user.id)
-                    );
-                    return String(cal.id) === String(targetId) && member?.status === 'pending';
-                });
+                let invite = null;
+                if (type === 'event') {
+                    const eventsList = data.pendingEvents || data.invitedEvents || [];
+                    invite = eventsList.find(ev => {
+                        const participant = ev.participants?.find(p =>
+                            String(p.user?.id || p.user) === String(user.id)
+                        );
+                        return String(ev.id) === String(targetId) && participant?.status === 'pending';
+                    });
+                } else {
+                    const calendarsList = data.pendingCalendars || data.shared || [];
+                    invite = calendarsList.find(cal => {
+                        const member = cal.sharedWith?.find(m =>
+                            String(m.user?.id || m.user) === String(user.id)
+                        );
+                        return String(cal.id) === String(targetId) && member?.status === 'pending';
+                    });
+                }
 
                 if (invite) {
                     setInvite(invite);
@@ -29,7 +42,7 @@ function InvitePage() {
                 }
             })
             .catch(() => setError('Failed to load invites'));
-    }, [user, navigate, targetId]);
+    }, [user, navigate, targetId, type]);
 
     useEffect(() => {
         if (user && targetId) {
@@ -39,11 +52,16 @@ function InvitePage() {
         }
     }, [fetchInvite, user, targetId, navigate]);
 
-    const handleResponse = async (calendarId, action) => {
+    const handleResponse = async (action) => {
         setError('');
 
         try {
-            await respondToInvite(calendarId, action);
+            if (type === 'event') {
+                const calendarId = invite.calendarId?.id || invite.calendarId;
+                await respondToEventInvite(calendarId, invite.id, action);
+            } else {
+                await respondToInvite(invite.id, action);
+            }
             navigate('/calendar');
         } catch (err) {
             setError(err.response?.data?.message || 'Server error');
@@ -54,9 +72,9 @@ function InvitePage() {
         <div>
             {invite && (
                 <div>
-                    <p>You have been invited to join {invite.name} by {invite.owner?.login}.</p>
-                    <button type="button" onClick={() => handleResponse(invite.id, 'accept')}>Accept</button>
-                    <button type="button" onClick={() => handleResponse(invite.id, 'decline')}>Decline</button>
+                    <p>You have been invited to join {invite.name} by {type === 'event' ? invite?.createdBy?.login : invite?.owner?.login}.</p>
+                    <button type="button" onClick={() => handleResponse('accept')}>Accept</button>
+                    <button type="button" onClick={() => handleResponse('decline')}>Decline</button>
                 </div>
             )}
 

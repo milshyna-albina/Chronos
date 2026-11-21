@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {shareCalendar, generateShareLink, disableShareLink} from '../services/calendarService.js';
 import {shareEvent, generateEventShareLink, disableEventShareLink} from '../services/eventService.js';
 import { searchUsers } from '../services/userService.js';
@@ -16,17 +16,30 @@ function ShareForm({ type, calendar, event, calendarId, onUpdate, onCancel }) {
     const [generatedLink, setGeneratedLink] = useState('');
     const [error, setError] = useState('');
     const [isPublicEnabled, setIsPublicEnabled] = useState(item.isPublicEnabled);
+    const [hasSearched, setHasSearched] = useState(false);
 
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        setError('');
-        try {
-            const result = await searchUsers(searchEmail);
-            setUsers(result.users || []);
-        } catch (err) {
-            setError(err.response?.data?.message || 'Server error');
+    useEffect(() => {
+        const query = searchEmail.trim();
+        if (!query) {
+            setUsers([]);
+            setHasSearched(false);
+            return;
         }
-    };
+
+        setHasSearched(false);
+        const timer = setTimeout(async () => {
+            setError('');
+            try {
+                const result = await searchUsers(query);
+                setUsers(result.users || []);
+                setHasSearched(true);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Server error');
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchEmail]);
 
     const handleSendInvite = async (email, userId) => {
         setError('');
@@ -94,11 +107,12 @@ function ShareForm({ type, calendar, event, calendarId, onUpdate, onCancel }) {
 
             <div>
                 <h5>By email</h5>
-                <form onSubmit={handleSearch}>
-                    <input type="text" placeholder="Search users by email" value={searchEmail} onChange={(e) => setSearchEmail(e.target.value)} required />
-                    <button type="submit">Search</button>
-                    <button type="button" onClick={() => {setSearchEmail(''); setUsers([]);}}>Clear</button>
-                </form>
+                <div>
+                    <input type="text" placeholder="Search users by email" value={searchEmail} onChange={(e) => setSearchEmail(e.target.value)} />
+                    {searchEmail && (
+                        <button onClick={() => { setSearchEmail(''); setUsers([]); setHasSearched(false); }}>Clear</button>
+                    )}
+                </div>
                 {users.length > 0 && (
                     <div>
                         {users.map(user => (
@@ -113,6 +127,9 @@ function ShareForm({ type, calendar, event, calendarId, onUpdate, onCancel }) {
                             </div>
                         ))}
                     </div>
+                )}
+                {hasSearched && users.length === 0 && !error && (
+                    <p>No users found.</p>
                 )}
             </div>
 

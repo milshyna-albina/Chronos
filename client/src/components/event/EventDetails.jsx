@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthContext } from '../../context/AuthContext.js';
 import ShareForm from '../ShareForm.jsx';
-import {respondToEventInvite, removeEventMember, updateEventMemberRole} from '../../services/eventService.js';
+import {removeEventMember, updateEventMemberRole} from '../../services/eventService.js';
 
 function EventDetails({ event, onClose, onEdit, onDelete, onUpdate }) {
     const { user } = useAuthContext();
@@ -13,26 +13,9 @@ function EventDetails({ event, onClose, onEdit, onDelete, onUpdate }) {
         setParticipants(event.participants || []);
     }, [event]);
 
-    const isPendingParticipant = participants.some(
-        participant =>
-            String(participant.user?.id || participant.user) === String(user?.id) && participant.status === 'pending'
-    );
-
-    const canEdit = event.isEditable && !isPendingParticipant;
-    const canDelete = event.isDeletable && !isPendingParticipant;
-    const canShare = event.isShareable && !isPendingParticipant;
-
-    const handleResponse = async (action) => {
-        setError('');
-        try {
-            await respondToEventInvite(event.calendarId, event.id, action);
-            if (onUpdate) await onUpdate();
-            onClose();
-        } catch (err) {
-            setError(err.response?.data?.message || 'Server error');
-        }
-    };
-
+    const canEdit = event.isEditable;
+    const canDelete = event.isDeletable;
+    const canShare = event.isShareable;
     const handleRemoveMember = async (userId) => {
         setError('');
         try {
@@ -101,13 +84,12 @@ function EventDetails({ event, onClose, onEdit, onDelete, onUpdate }) {
                             const memberId = member.user?.id || member.user;
                             const isSelf = String(memberId) === String(user?.id);
                             const isPending = member.status === 'pending';
-                            const hideControls = isSelf || isPending;
 
                             return (
                                 <li key={memberId}>
                                     {member.user?.login || member.user?.email}
                                     {isPending && ' (pending)'}
-                                    {canEdit && !hideControls ? (
+                                    {canEdit && !isSelf ? (
                                         <span>
                                             <select value={member.role} onChange={e => handleRoleChange(memberId, e.target.value)}>
                                                 <option value="viewer">Viewer</option>
@@ -122,14 +104,6 @@ function EventDetails({ event, onClose, onEdit, onDelete, onUpdate }) {
                             );
                         })}
                     </ul>
-                </div>
-            )}
-
-            {isPendingParticipant && (
-                <div>
-                    <p>You are invited to this event.</p>
-                    <button onClick={() => handleResponse('accept')}>Accept</button>
-                    <button onClick={() => handleResponse('decline')}>Decline</button>
                 </div>
             )}
 

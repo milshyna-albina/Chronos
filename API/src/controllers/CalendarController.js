@@ -77,10 +77,34 @@ class CalendarController {
         }
       });
 
+      const [pendingCalendars, pendingEvents] = await Promise.all([
+        Calendar.find({
+          sharedWith: {
+            $elemMatch: {
+              user: req.user.id,
+              status: 'pending'
+            }
+          }
+        }).populate('owner', 'login email avatarPath')
+          .populate('sharedWith.user', 'login email avatarPath'),
+        Event.find({
+          participants: {
+            $elemMatch: {
+              user: req.user.id,
+              status: 'pending'
+            }
+          }
+        }).populate('createdBy', 'login email')
+          .populate('participants.user', 'login email')
+          .populate('calendarId', 'name')
+      ]);
+
       res.status(200).json({
         owned: ownedCalendars,
         shared: sharedCalendars,
-        invitedEvents: invitedEvents
+        invitedEvents: invitedEvents,
+        pendingCalendars: pendingCalendars,
+        pendingEvents: pendingEvents
       });
     } catch (error) {
       console.error('[CalendarController.getCalendarsWithEvents]:', error.message);

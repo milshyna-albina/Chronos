@@ -29,7 +29,7 @@ export const getFetchDates = (viewMode, currentDate) => {
         const firstDay = new Date(getYear, getMonth, 1);
         const lastDay = new Date(getYear, getMonth + 1, 0);
         startDateStr = new Date(getYear, getMonth, 1 - (firstDay.getDay() + 6) % 7).toISOString();
-        endDateStr = new Date(getYear, getMonth + 1, lastDay.getDate() + (7 - (lastDay.getDay() + 6) % 7) % 7).toISOString();
+        endDateStr = new Date(getYear, getMonth, lastDay.getDate() + (6 - (lastDay.getDay() + 6) % 7) + 1).toISOString();
     }
     return { startDateStr, endDateStr };
 };

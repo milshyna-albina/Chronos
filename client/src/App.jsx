@@ -30,7 +30,8 @@ function App() {
                         <Route path="/calendar" element={<CalendarPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/users/:id" element={<UserProfilePage />} />
-                        <Route path="/calendar/invites" element={<InvitePage />} />
+                        <Route path="/calendar/invites" element={<InvitePage type="calendar" />} />
+                        <Route path="/event/invites" element={<InvitePage type="event" />} />
                         <Route path="/calendar/share" element={<JoinLinkPage type="calendar" />} />
                         <Route path="/event/share" element={<JoinLinkPage type="event" />} />
                     </Routes>
