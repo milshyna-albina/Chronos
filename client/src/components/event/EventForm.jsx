@@ -40,6 +40,9 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
     const isCurrentCalendarInList = allAvailableCalendars.some(
         cal => String(cal.id) === String(selectedCalendarId)
     );
+    const isRecurringEdit = Boolean(eventToEdit?.isRecurring);
+    const [editScope, setEditScope] = useState('this');
+    const showRecurrence = !eventToEdit?.isOverride && (!isRecurringEdit || editScope === 'all');
 
     useEffect(() => {
         getTags().then(data => setAvailableTags(data.tags || [])).catch(console.error);
@@ -152,8 +155,7 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
             setError('End time cannot be earlier than start time');
             return;
         }
-
-        if (frequency !== 'none' && endsType === 'date' && untilDate) {
+        if (showRecurrence && frequency !== 'none' && endsType === 'date' && untilDate) {
             const untilDateTime = new Date(untilDate);
             untilDateTime.setHours(23, 59, 59, 999);
             if (untilDateTime <= startDateTime) {
@@ -164,7 +166,7 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
 
         let recurrenceData = { frequency: 'none' };
 
-        if (frequency !== 'none') {
+        if (showRecurrence && frequency !== 'none') {
             recurrenceData = {
                 frequency,
                 interval: parseInt(interval, 10)
@@ -190,14 +192,28 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
             location: location,
             tags: selectedTags,
             color: eventColor,
-            recurrence: recurrenceData,
             notificationChannel: notificationChannel,
             reminderMinutesBefore: eventType === 'reminder' ? 0 : parseInt(reminderMinutesBefore, 10)
         };
 
+        if (showRecurrence) {
+            eventData.recurrence = recurrenceData;
+        }
+
+        if (isRecurringEdit) {
+            eventData.scope = editScope;
+            if (editScope === 'this') {
+                eventData.occurrenceStart = eventToEdit.occurrenceStart;
+            }
+        } else if (eventToEdit?.isOverride) {
+            eventData.scope = 'this';
+            eventData.occurrenceStart = eventToEdit.occurrenceStart;
+        }
+
         try {
             if (eventToEdit) {
-                await updateEvent(selectedCalendarId, eventToEdit.id, eventData);
+                const targetEventId = eventToEdit.isOverride ? (eventToEdit.seriesId || eventToEdit.id) : eventToEdit.id;
+                await updateEvent(selectedCalendarId, targetEventId, eventData);
             } else {
                 await createEvent(selectedCalendarId, eventData);
             }
@@ -303,60 +319,80 @@ function EventForm({ selectedDate, eventToEdit, calendars, user, onSuccess, onCa
                     </div>
                 )}
 
-                <div>
-                    <label>Repeat</label>
-                    <select value={frequency} onChange={(e) => setFrequency(e.target.value)}>
-                        <option value="none">Does not repeat</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
-                    </select>
-                </div>
-
-                {frequency !== 'none' && (
+                {!isRecurringEdit && (
                     <div>
                         <div>
-                            <label>Repeat every</label>
-                            <input type="number" min="1" value={interval} onChange={(e) => setIntervalValue(e.target.value)} required />
-                            <span>
-                                {frequency === 'daily' && ' days'}
-                                {frequency === 'weekly' && ' weeks'}
-                                {frequency === 'monthly' && ' months'}
-                                {frequency === 'yearly' && ' years'}
-                            </span>
+                            <label>Repeat</label>
+                            <select value={frequency} onChange={(e) => setFrequency(e.target.value)}>
+                                <option value="none">Does not repeat</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="yearly">Yearly</option>
+                            </select>
                         </div>
 
-                        {frequency === 'weekly' && (
+                        {frequency !== 'none' && (
                             <div>
-                                <label>Repeat on</label>
                                 <div>
-                                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-                                        <label key={index}>
-                                            <input type="checkbox" checked={daysOfWeek.includes((index + 1) % 7)} onChange={() => toggleDayOfWeek((index + 1) % 7)} />
-                                            {day}
+                                    <label>Repeat every</label>
+                                    <input type="number" min="1" value={interval} onChange={(e) => setIntervalValue(e.target.value)} required />
+                                    <span>
+                                        {frequency === 'daily' && ' days'}
+                                        {frequency === 'weekly' && ' weeks'}
+                                        {frequency === 'monthly' && ' months'}
+                                        {frequency === 'yearly' && ' years'}
+                                    </span>
+                                </div>
+
+                                {frequency === 'weekly' && (
+                                    <div>
+                                        <label>Repeat on</label>
+                                        <div>
+                                            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+                                                <label key={index}>
+                                                    <input type="checkbox" checked={daysOfWeek.includes((index + 1) % 7)} onChange={() => toggleDayOfWeek((index + 1) % 7)} />
+                                                    {day}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label>Ends</label>
+                                    <div>
+                                        <label>
+                                            <input type="radio" name="endsType" value="never" checked={endsType === 'never'} onChange={() => setEndsType('never')} />
+                                            Never
                                         </label>
-                                    ))}
+                                        <label>
+                                            <input type="radio" name="endsType" value="date" checked={endsType === 'date'} onChange={() => setEndsType('date')} />
+                                            On date
+                                        </label>
+                                    </div>
+
+                                    {endsType === 'date' && (
+                                        <input type="date" value={untilDate} onChange={(e) => setUntilDate(e.target.value)} required={endsType === 'date'} />
+                                    )}
                                 </div>
                             </div>
                         )}
+                    </div>
+                )}
 
+                {isRecurringEdit && (
+                    <div>
+                        <label>Edit</label>
                         <div>
-                            <label>Ends</label>
-                            <div>
-                                <label>
-                                    <input type="radio" name="endsType" value="never" checked={endsType === 'never'} onChange={() => setEndsType('never')} />
-                                    Never
-                                </label>
-                                <label>
-                                    <input type="radio" name="endsType" value="date" checked={endsType === 'date'} onChange={() => setEndsType('date')} />
-                                    On date
-                                </label>
-                            </div>
-
-                            {endsType === 'date' && (
-                                <input type="date" value={untilDate} onChange={(e) => setUntilDate(e.target.value)} required={endsType === 'date'} />
-                            )}
+                            <label>
+                                <input type="radio" name="editScope" value="this" checked={editScope === 'this'} onChange={() => setEditScope('this')} />
+                                Only this event
+                            </label>
+                            <label>
+                                <input type="radio" name="editScope" value="all" checked={editScope === 'all'} onChange={() => setEditScope('all')} />
+                                All events in series
+                            </label>
                         </div>
                     </div>
                 )}

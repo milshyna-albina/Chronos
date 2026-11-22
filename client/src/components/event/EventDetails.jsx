@@ -111,7 +111,20 @@ function EventDetails({ event, onClose, onEdit, onDelete, onUpdate }) {
 
             {canEdit && (<button onClick={() => onEdit(event)}>Edit</button>)}
             {canShare && (<button onClick={() => setShowShareForm(prev => !prev)}>Share</button>)}
-            {canDelete && (<button onClick={() => onDelete(event.calendarId, event.id)}>Delete</button>)}
+            {canDelete && (
+                event.isRecurring ? (
+                    <span>
+                        <button onClick={() => onDelete(event.calendarId, event.seriesId || event.id, {scope: 'this', occurrenceStart: event.occurrenceStart || event.startDate})}>
+                            Delete this event
+                        </button>
+                        <button onClick={() => onDelete(event.calendarId, event.seriesId || event.id, { scope: 'all' })}>
+                            Delete all events in the series
+                        </button>
+                    </span>
+                ) : (
+                    <button onClick={() => onDelete(event.calendarId, event.id)}>Delete</button>
+                )
+            )}
 
             {showShareForm && canShare && (
                 <ShareForm

@@ -91,10 +91,10 @@ function CalendarGrid() {
         setCurrentDate(new Date(getYear, monthIndex, 1));
     };
 
-    const handleDeleteEvent = async (calendarId, eventId) => {
+    const handleDeleteEvent = async (calendarId, eventId, deleteData) => {
         setError('');
         try {
-            await deleteEvent(calendarId, eventId);
+            await deleteEvent(calendarId, eventId, deleteData);
             setViewingEvent(null);
             fetchCalendarData();
         } catch (err) {

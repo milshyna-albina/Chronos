@@ -98,6 +98,7 @@ function expandEvent(eventDoc, start, end, overrides = []) {
     if (ovStart <= end && ovEnd >= start) {
       result.push({
         ...ov,
+        calendarId: ov.calendarId || event.calendarId,
         seriesId: event.id,
         occurrenceStart: ov.originalStartDate ? new Date(ov.originalStartDate) : ovStart,
         isRecurring: true,
@@ -129,6 +130,7 @@ const getEventsForCalendars = async (calendarIds, start, end, userId) => {
 
   const eventQuery = {
     calendarId: { $in: calendarIds },
+    recurringEventId: { $in: [null] },
     $or: [
       {
         'recurrence.frequency': 'none',
@@ -193,6 +195,7 @@ const getEventsForCalendars = async (calendarIds, start, end, userId) => {
 const getInvitedEvents = async (calendarIds, start, end, userId) => {
   const eventQuery = {
     calendarId: { $nin: calendarIds },
+    recurringEventId: { $in: [null] },
     participants: {
       $elemMatch: {
         user: userId,

@@ -167,7 +167,10 @@ class EventController {
               tags: overrideDoc.tags,
               recurrence: { frequency: 'none' },
               recurringEventId: event._id,
-              originalStartDate: occDate
+              originalStartDate: occDate,
+              calendarId: event.calendarId,
+              createdBy: event.createdBy,
+              participants: overrideDoc.participants
             }
           },
           { upsert: true, new: true, setDefaultsOnInsert: true }

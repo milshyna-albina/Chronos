@@ -10,8 +10,8 @@ export const updateEvent = async (calendarId, eventId, eventData) => {
     return response.data;
 };
 
-export const deleteEvent = async (calendarId, eventId) => {
-    const response = await api.delete(`/calendars/${calendarId}/events/${eventId}`);
+export const deleteEvent = async (calendarId, eventId, deleteData = {}) => {
+    const response = await api.delete(`/calendars/${calendarId}/events/${eventId}`, { data: deleteData });
     return response.data;
 };
 
