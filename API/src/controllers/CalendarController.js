@@ -502,9 +502,8 @@ class CalendarController {
       }
 
       const token = crypto.randomUUID();
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-      calendar.shareToken = tokenHash;
+      calendar.shareToken = crypto.createHash('sha256').update(token).digest('hex');
       calendar.isPublicEnabled = true;
       calendar.publicRole = role;
 
@@ -592,6 +591,13 @@ class CalendarController {
           role: calendar.publicRole,
           status: 'accepted'
         });
+        await calendar.save();
+      } else if (member.status === 'pending') {
+        member.status = 'accepted';
+        member.expiresAt = undefined;
+        if (member.role !== 'editor' && calendar.publicRole === 'editor') {
+          member.role = 'editor';
+        }
         await calendar.save();
       }
       res.status(200).json({

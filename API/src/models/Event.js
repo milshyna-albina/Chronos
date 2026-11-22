@@ -54,8 +54,7 @@ const eventSchema = new mongoose.Schema({
   calendarId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Calendar',
-    required: true,
-    index: true
+    required: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -65,8 +64,7 @@ const eventSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: ['arrangement', 'reminder', 'task'],
-    default: 'arrangement',
-    index: true
+    default: 'arrangement'
   },
   startDate: {
     type: Date,
@@ -115,6 +113,18 @@ const eventSchema = new mongoose.Schema({
     type: recurrenceSchema,
     default: () => ({ frequency: 'none' })
   },
+  exdates: [{
+    type: Date
+  }],
+  recurringEventId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event',
+    default: null
+  },
+  originalStartDate: {
+    type: Date,
+    default: null
+  },
   isPublicEnabled: {
     type: Boolean,
     default: false
@@ -135,6 +145,7 @@ const eventSchema = new mongoose.Schema({
 eventSchema.index({ calendarId: 1, startDate: 1, endDate: 1 });
 eventSchema.index({ tags: 1 });
 eventSchema.index({ 'participants.user': 1, 'recurrence.frequency': 1, startDate: 1});
+eventSchema.index({ recurringEventId: 1, originalStartDate: 1 });
 
 eventSchema.set('toJSON', {
   virtuals: true,

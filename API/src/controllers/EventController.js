@@ -1,23 +1,12 @@
 const crypto = require('crypto');
 const Calendar = require('../models/Calendar');
 const Event = require('../models/Event');
-const Tag = require('../models/Tag');
 const User = require('../models/User');
 const agenda = require('../services/agendaService');
+const { updateEventFields, scheduleEventReminder } = require('../services/eventService');
 const { sendInviteToEventEmail } = require('../utils/mail');
-const {
-  isNameValid,
-  isDescriptionValid,
-  isColorValid,
-  isTagValid,
-  isTypeValid,
-  isChannelValid,
-  validateRecurrence, isRoleValid, isActionValid
-} = require('../utils/validator');
-const {
-  canUserManageEvent,
-  canUserDeleteEvent
-} = require('../utils/permissions');
+const { isRoleValid, isActionValid } = require('../utils/validator');
+const { canUserManageEvent, canUserDeleteEvent } = require('../utils/permissions');
 
 class EventController {
   async createEvent(req, res) {
@@ -37,166 +26,42 @@ class EventController {
         });
       }
 
-      let { startDate, endDate } = req.body;
-      const {
-        name, description, type, isAllDay, location, color, tags,
-        recurrence, notificationChannel, reminderMinutesBefore
-      } = req.body;
-
-      if (!name) {
-        return res.status(400).json({
-          message: 'Name is required.'
-        });
-      }
-      if (!type) {
-        return res.status(400).json({
-          message: 'Type is required.'
-        });
-      }
-      if (!startDate) {
-        return res.status(400).json({
-          message: "'startDate' is required."
-        });
-      }
-      if (!isNameValid(name)) {
-        return res.status(400).json({
-          message: 'Name must be 1-200 characters long.'
-        });
-      }
-      if (description && !isDescriptionValid(description)) {
-        return res.status(400).json({
-          message: 'Description must not be empty.'
-        });
-      }
-      if (!isTypeValid(type)) {
-        return res.status(400).json({
-          message: "Type must be 'arrangement', 'reminder' or 'task'."
-        });
-      }
-      if (isAllDay && typeof isAllDay !== 'boolean') {
-        return res.status(400).json({
-          message: "'isAllDay' must be boolean."
-        });
-      }
-      if (location && !isDescriptionValid(location)) {
-        return res.status(400).json({
-          message: 'Location must not be empty.'
-        });
-      }
-      if (color && !isColorValid(color)) {
-        return res.status(400).json({
-          message: 'Invalid color format.'
-        });
-      }
-      if (reminderMinutesBefore !== undefined) {
-        if (!Number.isInteger(reminderMinutesBefore) || reminderMinutesBefore < 0) {
-          return res.status(400).json({
-            message: "'reminderMinutesBefore' must be an integer" +
-              " greater than or equal to 0"
-          });
-        }
-      }
-
-      let tagIds = [];
-      if (tags) {
-        const tagsArray = Array.isArray(tags) ? tags : [tags];
-        const tagNames = tagsArray
-          .filter(tag => isTagValid(tag))
-          .map(tag => tag.trim().toLowerCase());
-
-        if (tagNames.length > 0) {
-          const existing = await Tag.find({
-            userId: req.user.id,
-            name: { $in: tagNames }
-          });
-          if (existing.length !== tagNames.length) {
-            return res.status(400).json({
-              message: 'One or more specified tags do not exist or do not belong to you.'
-            });
-          }
-          tagIds = existing.map(tag => tag._id);
-        }
-      }
-
-      const parsedStart = new Date(startDate);
-      if (isNaN(parsedStart.getTime())) {
-        return res.status(400).json({
-          message: "Invalid 'startDate' format."
-        });
-      }
-
-      let parsedEnd;
-      if (endDate) {
-        parsedEnd = new Date(endDate);
-        if (isNaN(parsedEnd.getTime())) {
-          return res.status(400).json({
-            message: "Invalid 'endDate' format."
-          });
-        }
-        if (parsedStart > parsedEnd) {
-          return res.status(400).json({
-            message: "'startDate' cannot be later than 'endDate'."
-          });
-        }
-      } else {
-        if (type === 'arrangement') {
-          parsedEnd = new Date(parsedStart.getTime() + 60 * 60 * 1000);
-        } else {
-          parsedEnd = parsedStart;
-        }
-      }
-
-      if (recurrence !== undefined) {
-        const validateRes = validateRecurrence(recurrence, parsedStart);
-        if (!validateRes.isValid) {
-          return res.status(400).json({
-            message: validateRes.message
-          });
-        }
-      }
-
-      let channel = notificationChannel;
-      if (type === 'arrangement' && !isChannelValid(channel)) {
-        channel = 'in-app';
-      } else if (type === 'reminder' && !isChannelValid(channel)) {
-        channel = 'email';
-      } else if (type === 'task') {
-        channel = channel || 'none';
-      }
-
-      const newEvent = await Event.create({
-        name: name,
-        description: description || '',
+      const event = new Event({
         calendarId: calendar_id,
-        createdBy: req.user.id,
-        type: type,
-        startDate: parsedStart,
-        endDate: parsedEnd,
-        isAllDay: isAllDay || false,
-        location: location || '',
-        color: color || calendar.color,
-        notificationChannel: channel,
-        reminderMinutesBefore: reminderMinutesBefore || 15,
-        tags: tagIds || [],
-        recurrence: recurrence || { frequency: 'none' }
+        createdBy: req.user.id
       });
 
-      if (newEvent.notificationChannel !== 'none') {
-        const minutesBefore = newEvent.type === 'reminder'
-        ? 0 : (newEvent.reminderMinutesBefore || 0)
+      const updateRes = await updateEventFields(
+        event,
+        req.body,
+        req.user.id,
+        true,
+        calendar.color
+      );
+      if (updateRes.error) {
+        return res.status(updateRes.error.status).json({
+          message: updateRes.error.message
+        });
+      }
+
+      await event.save();
+
+      if (event.notificationChannel !== 'none') {
+        const minutesBefore = event.type === 'reminder'
+        ? 0 : (event.reminderMinutesBefore || 0)
         const reminderTime = new Date(
-          newEvent.startDate.getTime() - (minutesBefore * 60 * 1000)
+          new Date(event.startDate).getTime() - (minutesBefore * 60 * 1000)
         );
         if (reminderTime > new Date()) {
           await agenda.schedule(reminderTime, 'send-event-reminder', {
-            event_id: newEvent._id
+            event_id: event._id
           });
         }
       }
 
       res.status(201).json({
         message: 'Event created successfully.',
-        event: newEvent
+        event: event
       });
     } catch (error) {
       console.error('[CalendarController.createEvent]:', error.message);
@@ -209,6 +74,7 @@ class EventController {
   async updateEvent(req, res) {
     try {
       const { calendar_id, event_id } = req.params;
+      const { occurrenceStart, scope = 'all', ...fields } = req.body;
 
       const [calendar, event] = await Promise.all([
         Calendar.findById(calendar_id),
@@ -231,182 +97,141 @@ class EventController {
         });
       }
 
-      const {
-        name, description, type, startDate, endDate,
-        isAllDay, isCompleted, location, color, tags, recurrence,
-        notificationChannel, reminderMinutesBefore
-      } = req.body;
+      const isRecurring = event.recurrence && event.recurrence.frequency !== 'none';
 
-      if (name !== undefined) {
-        if (!isNameValid(name)) {
+      if (isRecurring && scope === 'this') {
+        if (!occurrenceStart) {
           return res.status(400).json({
-            message: 'Name must be 1-200 characters long.'
+            message: "'occurrenceStart' is required when updating a single occurrence."
           });
         }
-        event.name = name;
-      }
-      if (description !== undefined) {
-        if (description !== '' && !isDescriptionValid(description)) {
+        const occDate = new Date(occurrenceStart);
+        if (Number.isNaN(occDate.getTime())) {
           return res.status(400).json({
-            message: 'Description must not be empty.'
+            message: "Invalid 'occurrenceStart' format."
           });
         }
-        event.description = description;
-      }
-      if (type !== undefined) {
-        if (!isTypeValid(type)) {
-          return res.status(400).json({
-            message: "Type must be 'arrangement', 'reminder' or 'task'."
-          });
-        }
-        event.type = type;
-      }
-      const currentType = type !== undefined ? type : event.type;
+        const durationMs =
+          new Date(event.endDate).getTime() - new Date(event.startDate).getTime();
 
-      if (isAllDay !== undefined) {
-        if (typeof isAllDay !== 'boolean') {
-          return res.status(400).json({
-            message: "'isAllDay' must be boolean."
-          });
-        }
-        event.isAllDay = isAllDay;
-      }
-      if (isCompleted !== undefined) {
-        if (typeof isCompleted !== 'boolean') {
-          return res.status(400).json({
-            message: "'isCompleted' must be boolean."
-          });
-        }
-        if (currentType !== 'task') {
-          return res.status(400).json({
-            message: "Only events of type 'task' can be marked as completed."
-          });
-        }
-        event.isCompleted = isCompleted;
-      }
-      if (location !== undefined) {
-        if (location !== '' && !isDescriptionValid(location)) {
-          return res.status(400).json({
-            message: 'Location must not be empty.'
-          });
-        }
-        event.location = location;
-      }
-      if (color !== undefined) {
-        if (!isColorValid(color)) {
-          return res.status(400).json({
-            message: 'Invalid color format.'
-          });
-        }
-        event.color = color;
-      }
-      if (reminderMinutesBefore !== undefined) {
-        if (!Number.isInteger(reminderMinutesBefore) || reminderMinutesBefore < 0) {
-          return res.status(400).json({
-            message: "'reminderMinutesBefore' must be an integer" +
-              " greater than or equal to 0"
-          });
-        }
-        event.reminderMinutesBefore = reminderMinutesBefore;
-      }
-      if (tags !== undefined) {
-        let tagIds = [];
-        if (tags) {
-          const tagsArray = Array.isArray(tags) ? tags : [tags];
-          const tagNames = tagsArray
-            .filter(tag => isTagValid(tag))
-            .map(tag => tag.trim().toLowerCase());
+        const overrideDoc = new Event({
+          name: event.name,
+          description: event.description,
+          calendarId: event.calendarId,
+          createdBy: event.createdBy,
+          type: event.type,
+          startDate: occDate,
+          endDate: new Date(occDate.getTime() + durationMs),
+          isAllDay: event.isAllDay,
+          location: event.location,
+          color: event.color,
+          notificationChannel: event.notificationChannel,
+          reminderMinutesBefore: event.reminderMinutesBefore,
+          tags: event.tags,
+          recurrence: { frequency: 'none' },
+          recurringEventId: event._id,
+          originalStartDate: occDate,
+          participants: event.participants
+        });
 
-          if (tagNames.length > 0) {
-            const existing = await Tag.find({
-              userId: req.user.id,
-              name: { $in: tagNames }
-            });
-            if (existing.length !== tagNames.length) {
-              return res.status(400).json({
-                message: 'One or more specified tags do not exist or do not belong to you.'
-              });
+        const updateRes = await updateEventFields(overrideDoc, fields, req.user.id);
+        if (updateRes.error) {
+          return res.status(updateRes.error.status).json({
+            message: updateRes.error.message
+          });
+        }
+
+        const occTime = occDate.getTime();
+        const alreadyExcluded = (event.exdates || []).some(
+          d => new Date(d).getTime() === occTime
+        );
+        if (!alreadyExcluded) {
+          event.exdates.push(occDate);
+        }
+
+        const savedOverride = await Event.findOneAndUpdate(
+          { recurringEventId: event._id, originalStartDate: occDate },
+          {
+            $set: {
+              name: overrideDoc.name,
+              description: overrideDoc.description,
+              type: overrideDoc.type,
+              startDate: overrideDoc.startDate,
+              endDate: overrideDoc.endDate,
+              isAllDay: overrideDoc.isAllDay,
+              isCompleted: overrideDoc.isCompleted,
+              location: overrideDoc.location,
+              color: overrideDoc.color,
+              notificationChannel: overrideDoc.notificationChannel,
+              reminderMinutesBefore: overrideDoc.reminderMinutesBefore,
+              tags: overrideDoc.tags,
+              recurrence: { frequency: 'none' },
+              recurringEventId: event._id,
+              originalStartDate: occDate
             }
-            tagIds = existing.map(tag => tag._id);
-          }
-        }
-        event.tags = tagIds;
-      }
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
 
-      let parsedStart = event.startDate;
-      let parsedEnd = event.endDate;
+        await event.save();
+        await scheduleEventReminder(savedOverride);
 
-      if (startDate !== undefined) {
-        parsedStart = new Date(startDate);
-        if (isNaN(parsedStart.getTime())) {
-          return res.status(400).json({
-            message: "Invalid 'startDate' format."
-          });
-        }
-        event.startDate = parsedStart;
-      }
-      if (endDate !== undefined) {
-        if (endDate === null) {
-          parsedEnd = event.type === 'arrangement'
-          ? new Date(new Date(event.startDate).getTime() + 60 * 60 * 1000)
-          : event.startDate;
-        } else {
-          parsedEnd = new Date(endDate);
-          if (isNaN(parsedEnd.getTime())) {
-            return res.status(400).json({
-              message: "Invalid 'endDate' format."
-            });
-          }
-        }
-        event.endDate = parsedEnd;
-      }
-      if (new Date(event.startDate) > new Date(event.endDate)) {
-        return res.status(400).json({
-          message: "'startDate' cannot be later than 'endDate'."
+        return res.status(200).json({
+          message: 'Event occurrence updated successfully.',
+          event: savedOverride,
+          seriesId: event._id,
+          scope: 'this'
         });
       }
-      if (recurrence !== undefined) {
-        const validateRes = validateRecurrence(recurrence, new Date(event.startDate));
-        if (!validateRes.isValid) {
-          return res.status(400).json({
-            message: validateRes.message
-          });
+
+      const seriesFields = { ...fields };
+
+      if (isRecurring && scope === 'all' && seriesFields.startDate) {
+        const editedStart = new Date(seriesFields.startDate);
+        if (!Number.isNaN(editedStart.getTime())) {
+          const start = new Date(event.startDate);
+          const adjustedStart = new Date(start);
+          adjustedStart.setUTCHours(
+            editedStart.getUTCHours(),
+            editedStart.getUTCMinutes(),
+            editedStart.getUTCSeconds(),
+            editedStart.getUTCMilliseconds()
+          );
+          let adjustedEnd;
+          if (seriesFields.endDate) {
+            const editedEnd = new Date(seriesFields.endDate);
+            if (!Number.isNaN(editedStart.getTime())) {
+              const newDuration =
+                Math.max(0, editedEnd.getTime() - editedStart.getTime());
+              adjustedEnd = new Date(adjustedStart.getTime() + newDuration);
+            }
+          } else {
+            const oldDuration =
+              new Date(event.endDate).getTime() - new Date(event.startDate).getTime();
+            adjustedEnd = new Date(adjustedStart.getTime() + oldDuration);
+          }
+
+          seriesFields.startDate = adjustedStart;
+          if (adjustedEnd) {
+            seriesFields.endDate = adjustedEnd;
+          }
         }
-        event.recurrence = recurrence;
       }
 
-      let channel = notificationChannel !== undefined
-      ? notificationChannel
-      : event.notificationChannel;
-
-      if (currentType === 'arrangement') {
-        channel = 'in-app';
-      } else if (currentType === 'reminder' && !isChannelValid(channel)) {
-        channel = 'email';
-      } else if (currentType === 'task') {
-        channel = channel || 'none';
+      const updateRes = await updateEventFields(event, seriesFields, req.user.id);
+      if (updateRes.error) {
+        return res.status(updateRes.error.status).json({
+          message: updateRes.error.message
+        });
       }
-      event.notificationChannel = channel;
 
       await event.save();
-
-      await agenda.cancel({ 'data.event_id': event_id });
-      if (!event.isNotified && event.notificationChannel !== 'none') {
-        const minutesBefore = event.type === 'reminder'
-          ? 0 : (event.reminderMinutesBefore || 0)
-        const reminderTime = new Date(
-            event.startDate.getTime() - (minutesBefore * 60 * 1000)
-        );
-        if (reminderTime > new Date()) {
-          await agenda.schedule(reminderTime, 'send-event-reminder', {
-            event_id: event._id
-          });
-        }
-      }
+      await scheduleEventReminder(event);
 
       res.status(200).json({
         message: 'Event updated successfully.',
-        event: event
+        event: event,
+        scope: isRecurring ? 'all' : 'single'
       });
     } catch (error) {
       console.error('[CalendarController.updateEvent]:', error.message);
@@ -419,6 +244,7 @@ class EventController {
   async deleteEvent(req, res) {
     try {
       const { calendar_id, event_id } = req.params;
+      const { occurrenceStart, scope = 'all' } = req.body;
 
       const [calendar, event] = await Promise.all([
         Calendar.findById(calendar_id),
@@ -441,12 +267,77 @@ class EventController {
         });
       }
 
+      if (event.recurringEventId) {
+        await agenda.cancel({ 'data.event_id': event._id.toString() });
+        await event.deleteOne();
+
+        return res.status(200).json({
+          message: 'Event occurrence deleted successfully.',
+          eventId: event._id.toString(),
+          scope: 'this'
+        });
+      }
+
+      const isRecurring = event.recurrence && event.recurrence.frequency !== 'none';
+
+      if (isRecurring && scope === 'this') {
+        if (!occurrenceStart) {
+          return res.status(400).json({
+            message: "'occurrenceStart' is required when deleting a single occurrence."
+          });
+        }
+        const occDate = new Date(occurrenceStart);
+        if (Number.isNaN(occDate.getTime())) {
+          return res.status(400).json({
+            message: "Invalid 'occurrenceStart' format."
+          });
+        }
+        const occTime = occDate.getTime();
+        const currentExdates = Array.isArray(event.exdates) ? event.exdates : [];
+        const alreadyExcluded = currentExdates.some(
+          d => new Date(d).getTime() === occTime
+        );
+        if (!alreadyExcluded) {
+          event.set('exdates', [...currentExdates, occDate]);
+          await event.save();
+        }
+        const existingOverride = await Event.findOne({
+          recurringEventId: event._id,
+          originalStartDate: occDate
+        });
+        if (existingOverride) {
+          await agenda.cancel({ 'data.event_id': existingOverride._id.toString() });
+          await existingOverride.deleteOne();
+        }
+
+        return res.status(200).json({
+          message: 'Event occurrence deleted successfully.',
+          seriesId: event._id.toString(),
+          occurrenceStart: occDate.toISOString(),
+          scope: 'this'
+        });
+      }
+
+      if (isRecurring) { //all
+        const overrides = await Event.find({
+          recurringEventId: event._id
+        }, '_id');
+        const overrideIds = overrides.map(ov => ov._id.toString());
+        if (overrideIds.length > 0) {
+          await Promise.all([
+            agenda.cancel({ 'data.event_id': { $in: overrideIds } }),
+            Event.deleteMany({ recurringEventId: event._id })
+          ]);
+        }
+      }
+
       await event.deleteOne();
-      await agenda.cancel({ 'data.event_id': event_id });
+      await agenda.cancel({ 'data.event_id': event._id.toString() });
 
       res.status(200).json({
         message: 'Event deleted successfully.',
-        eventId: event_id
+        eventId: event._id.toString(),
+        scope: isRecurring ? 'all' : 'single'
       });
     } catch (error) {
       console.error('[CalendarController.deleteEvent]:', error.message);
@@ -664,9 +555,8 @@ class EventController {
       }
 
       const token = crypto.randomUUID();
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-      event.shareToken = tokenHash;
+      event.shareToken = crypto.createHash('sha256').update(token).digest('hex');
       event.isPublicEnabled = true;
       event.publicRole = role;
 
@@ -766,7 +656,15 @@ class EventController {
           status: 'accepted'
         });
         await event.save();
+      } else if (member.status === 'pending') {
+        member.status = 'accepted';
+        member.expiresAt = undefined;
+        if (member.role !== 'editor' && event.publicRole === 'editor') {
+          member.role = 'editor';
+        }
+        await event.save();
       }
+
       res.status(200).json({
         message: 'Joined to the event successfully.',
         eventId: event._id,
