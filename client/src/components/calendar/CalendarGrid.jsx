@@ -8,6 +8,7 @@ import EventDetails from '../event/EventDetails.jsx';
 import CalendarView from './CalendarView.jsx';
 import {monthNames, dayNames, getWeekNumber, getFetchDates, generateMonthGrid, generateWeekGrid} from '../../utils/calendar.js';
 import {CALENDAR_COLOR} from "../../utils/colors.js";
+import { getHolidays } from '../../services/holidayService.js';
 
 const prepareEvent = (event, calendar, permissions) => ({
     ...event,
@@ -30,6 +31,7 @@ function CalendarGrid() {
     const getYear = currentDate.getFullYear();
     const getMonth = currentDate.getMonth();
     const currentTimestamp = currentDate.getTime();
+    const [holidays, setHolidays] = useState([]);
 
     const fetchCalendarData = useCallback(() => {
         const current = new Date(currentTimestamp);
@@ -46,6 +48,14 @@ function CalendarGrid() {
     useEffect(() => {
         fetchCalendarData();
     }, [fetchCalendarData]);
+
+    useEffect(() => {
+        getHolidays(getYear)
+            .then(data => setHolidays(data.holidays || []))
+            .catch(err => {
+                console.error('Failed to load holidays:', err);
+            });
+    }, [getYear, user?.country]);
 
     const handlePrev = () => {
         if (viewMode === 'week') {
@@ -154,7 +164,23 @@ function CalendarGrid() {
         });
     });
 
-    const allEvents = [...ownedEvents, ...sharedEvents, ...invitedEventsList];
+    const holidayEvents = holidays.map(holiday => {
+        const d = new Date(holiday.startDate);
+        return {
+            ...holiday,
+            startDate: new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0),
+            endDate: new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999),
+            calendarId: 'holidays',
+            calendarName: 'Holidays',
+            displayColor: holiday.color,
+            isEditable: false,
+            isDeletable: false,
+            isShareable: false,
+            isHoliday: true
+        };
+    });
+
+    const allEvents = [...ownedEvents, ...sharedEvents, ...invitedEventsList, ...holidayEvents];
 
     const getEventsForDay = (fullDate) => {
         const targetTime = new Date(fullDate.getFullYear(), fullDate.getMonth(), fullDate.getDate()).getTime();

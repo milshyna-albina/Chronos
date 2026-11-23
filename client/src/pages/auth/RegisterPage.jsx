@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../../services/authService.js';
 import { validateRegistrationForm } from '../../utils/validation.js';
+import { detectCountryByIP } from '../../utils/countries.js';
 
 function RegisterPage() {
     const [login, setLogin] = useState('');
@@ -21,11 +22,13 @@ function RegisterPage() {
         }
 
         try {
+            const country = await detectCountryByIP();
             const result = await registerUser({
                 login,
                 email,
                 password,
-                password_confirmation: passwordConfirmation
+                password_confirmation: passwordConfirmation,
+                country
             });
 
             if (result.userId) {

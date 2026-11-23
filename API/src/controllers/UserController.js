@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Token = require('../models/Token');
 const Calendar = require('../models/Calendar');
 const Event = require('../models/Event');
-const { isLoginValid, isEmailValid } = require('../utils/validator');
+const { isLoginValid, isEmailValid, isCountryCodeValid } = require('../utils/validator');
 const { deleteFile } = require('../utils/fileHandling');
 
 class UserController {
@@ -103,7 +103,7 @@ class UserController {
 
   async updateUser(req, res) {
     try {
-      const { login, email } = req.body;
+      const { login, email, country } = req.body;
 
       const user = await User.findById(req.user.id);
       if (!user) {
@@ -142,6 +142,16 @@ class UserController {
         user.email = email;
       }
 
+      if (country !== undefined) {
+        const countryCode = String(country).trim().toUpperCase();
+        if (!isCountryCodeValid(countryCode)) {
+          return res.status(400).json({
+            message: 'Invalid country code.'
+          });
+        }
+        user.country = countryCode;
+      }
+
       await user.save();
 
       res.status(200).json({
@@ -150,7 +160,8 @@ class UserController {
           id: user._id,
           login: user.login,
           email: user.email,
-          avatarPath: user.avatarPath
+          avatarPath: user.avatarPath,
+          country: user.country
         }
       });
     } catch (error) {
