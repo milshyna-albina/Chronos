@@ -1,6 +1,7 @@
 const { RRule } = require('rrule');
 const Event = require('../models/Event');
 const Tag = require('../models/Tag');
+const agenda = require('./agendaService');
 const {
   isNameValid,
   isDescriptionValid,
@@ -9,8 +10,7 @@ const {
   isTagValid,
   validateRecurrence,
   isChannelValid
-} = require("../utils/validator");
-const agenda = require("./agendaService");
+} = require('../utils/validator');
 
 const FREQ_MAP = {
   daily: RRule.DAILY,
@@ -460,5 +460,6 @@ module.exports = {
   getEventsForCalendars,
   getInvitedEvents,
   updateEventFields,
-  scheduleEventReminder
+  scheduleEventReminder,
+  expandEvent
 };

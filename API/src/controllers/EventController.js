@@ -4,6 +4,7 @@ const Event = require('../models/Event');
 const User = require('../models/User');
 const agenda = require('../services/agendaService');
 const { updateEventFields, scheduleEventReminder } = require('../services/eventService');
+const { searchUserEvents } = require('../services/eventSearchService');
 const { sendInviteToEventEmail } = require('../utils/mail');
 const { isRoleValid, isActionValid } = require('../utils/validator');
 const { canUserManageEvent, canUserDeleteEvent } = require('../utils/permissions');
@@ -795,6 +796,35 @@ class EventController {
       });
     } catch (error) {
       console.error('[EventController.removeMember]:', error.message);
+      res.status(500).json({
+        message: 'Internal server error.'
+      });
+    }
+  }
+
+  async searchEvents(req, res) {
+    try {
+      const { q, limit } = req.query;
+
+      if (!q) {
+        return res.status(200).json({
+          query: '',
+          events: []
+        });
+      }
+      const parsedLimit = Number.parseInt(limit, 10);
+      const events = await searchUserEvents(
+        req.user.id,
+        q,
+        (Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 30) : 10)
+      );
+
+      res.status(200).json({
+        query: q,
+        events: events
+      });
+    } catch (error) {
+      console.error('[EventController.searchEvents]:', error.message);
       res.status(500).json({
         message: 'Internal server error.'
       });
