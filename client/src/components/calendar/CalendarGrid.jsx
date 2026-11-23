@@ -19,7 +19,37 @@ const prepareEvent = (event, calendar, permissions) => ({
     ...permissions
 });
 
-function CalendarGrid() {
+const getEventPermissions = (event, calendars, user) => {
+    const userId = String(user?.id);
+    const calendarId = String(
+        event.calendarId?.id || event.calendarId?._id || event.calendarId
+    );
+    const isOwned = calendars.owned.some(c => String(c.id) === calendarId);
+    if (isOwned) {
+        return {
+            isEditable: true,
+            isDeletable: true,
+            isShareable: true
+        };
+    }
+    const sharedCal = calendars.shared.find(c => String(c.id) === calendarId);
+    const calendarMember = sharedCal?.sharedWith?.find(
+        member => String(member.user?.id || member.user) === userId
+    );
+    const isCreator = String(event.createdBy?.id || event.createdBy) === userId;
+    const isCalendarEditor = calendarMember?.role === 'editor';
+    const eventMember = event.participants?.find(
+        participant => String(participant.user?.id || participant.user) === userId
+    );
+    const isEventEditor = eventMember?.role === 'editor' && eventMember?.status === 'accepted';
+    return {
+        isEditable: isCreator || isCalendarEditor || isEventEditor,
+        isDeletable: isCreator || isCalendarEditor,
+        isShareable: isCreator || isCalendarEditor || isEventEditor
+    };
+};
+
+function CalendarGrid({ searchedEvent }) {
     const { user } = useAuthContext();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [calendars, setCalendars] = useState({ owned: [], shared: [], invitedEvents: [] });
@@ -56,6 +86,25 @@ function CalendarGrid() {
                 console.error('Failed to load holidays:', err);
             });
     }, [getYear, user?.country]);
+
+    useEffect(() => {
+        if (!searchedEvent?.data) return;
+        const foundEvent = searchedEvent.data;
+        const permissions = getEventPermissions(foundEvent, calendars, user);
+        const prepared = prepareEvent(
+            foundEvent,
+            {
+                id: String(foundEvent.calendarId?.id || foundEvent.calendarId),
+                name: foundEvent.calendarName,
+                color: foundEvent.calendarColor
+            },
+            permissions
+        );
+        setCurrentDate(new Date(foundEvent.startDate));
+        setSelectedDate(null);
+        setEditingEvent(null);
+        setViewingEvent(prepared);
+    }, [searchedEvent, calendars, user]);
 
     const handlePrev = () => {
         if (viewMode === 'week') {
@@ -118,11 +167,7 @@ function CalendarGrid() {
     const ownedEvents = calendars.owned.flatMap(calendar => {
         if (calendar.isHidden) return [];
         return (calendar.events || []).map(event =>
-            prepareEvent(event, calendar, {
-                isEditable: true,
-                isDeletable: true,
-                isShareable: true
-            })
+            prepareEvent(event, calendar, getEventPermissions(event, calendars, user))
         );
     });
 
@@ -131,38 +176,22 @@ function CalendarGrid() {
             member => String(member.user?.id || member.user) === String(user?.id)
         );
         if (myMemberData?.isHidden) return [];
-        return (calendar.events || []).map(event => {
-            const isCreator = String(event.createdBy?.id || event.createdBy) === String(user?.id);
-            const isCalendarEditor = myMemberData?.role === 'editor';
-            const isEventEditor = event.participants?.some(
-                p => String(p.user?.id || p.user) === String(user?.id) && p.role === 'editor'
-            );
-
-            return prepareEvent(event, calendar, {
-                isEditable: isCalendarEditor || isCreator || isEventEditor,
-                isDeletable: isCalendarEditor || isCreator,
-                isShareable: isCalendarEditor || isCreator || isEventEditor
-            });
-        });
-    });
-
-    const invitedEventsList = (calendars.invitedEvents || []).map(event => {
-        const myData = event.participants?.find(
-            participant => String(participant.user?.id || participant.user) === String(user?.id)
+        return (calendar.events || []).map(event =>
+            prepareEvent(event, calendar, getEventPermissions(event, calendars, user))
         );
-        const isCreator = String(event.createdBy?.id || event.createdBy) === String(user?.id);
-        const isEventEditor = myData?.role === 'editor';
-
-        return prepareEvent(event, {
-            id: event.calendarId?.id,
-            name: event.calendarId?.name,
-            color: CALENDAR_COLOR
-        }, {
-            isEditable: isEventEditor || isCreator,
-            isDeletable: isCreator,
-            isShareable: isEventEditor || isCreator
-        });
     });
+
+    const invitedEventsList = (calendars.invitedEvents || []).map(event =>
+        prepareEvent(
+            event,
+            {
+                id: event.calendarId?.id,
+                name: event.calendarId?.name,
+                color: CALENDAR_COLOR
+            },
+            getEventPermissions(event, calendars, user)
+        )
+    );
 
     const holidayEvents = holidays.map(holiday => {
         const d = new Date(holiday.startDate);

@@ -49,3 +49,8 @@ export const joinEventViaLink = async (token) => {
     const response = await api.post(`/events/share/${token}`);
     return response.data;
 };
+
+export const searchEvents = async (query, limit = 30) => {
+    const response = await api.get('/events/search', { params: { q: query, limit } });
+    return response.data;
+};
