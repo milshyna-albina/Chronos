@@ -9,6 +9,7 @@ import CalendarView from './CalendarView.jsx';
 import {monthNames, dayNames, getWeekNumber, getFetchDates, generateMonthGrid, generateWeekGrid} from '../../utils/calendar.js';
 import {CALENDAR_COLOR} from "../../utils/colors.js";
 import { getHolidays } from '../../services/holidayService.js';
+import { getTags } from '../../services/tagService.js';
 
 const prepareEvent = (event, calendar, permissions) => ({
     ...event,
@@ -62,6 +63,8 @@ function CalendarGrid({ searchedEvent }) {
     const getMonth = currentDate.getMonth();
     const currentTimestamp = currentDate.getTime();
     const [holidays, setHolidays] = useState([]);
+    const [selectedTagIds, setSelectedTagIds] = useState([]);
+    const [tags, setTags] = useState([]);
 
     const fetchCalendarData = useCallback(() => {
         const current = new Date(currentTimestamp);
@@ -86,6 +89,17 @@ function CalendarGrid({ searchedEvent }) {
                 console.error('Failed to load holidays:', err);
             });
     }, [getYear, user?.country]);
+
+    useEffect(() => {
+        getTags()
+            .then(data => {
+                const list = Array.isArray(data) ? data : (data.tags || []);
+                setTags(list);
+            })
+            .catch(err => {
+                console.error('Failed to load tags:', err);
+            });
+    }, []);
 
     useEffect(() => {
         if (!searchedEvent?.data) return;
@@ -161,6 +175,14 @@ function CalendarGrid({ searchedEvent }) {
         }
     };
 
+    const handleTagToggle = (tagId) => {
+        setSelectedTagIds(prev =>
+            prev.includes(tagId)
+                ? prev.filter(id => id !== tagId)
+                : [...prev, tagId]
+        );
+    };
+
     const weeks = generateMonthGrid(currentDate);
     const currentWeekDays = generateWeekGrid(currentDate);
 
@@ -209,11 +231,48 @@ function CalendarGrid({ searchedEvent }) {
         };
     });
 
-    const allEvents = [...ownedEvents, ...sharedEvents, ...invitedEventsList, ...holidayEvents];
+    const userEvents = [...ownedEvents, ...sharedEvents, ...invitedEventsList];
+
+    const sortedUserTags = [...tags].sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+            return new Date(a.createdAt) - new Date(b.createdAt);
+        }
+        return String(a.id).localeCompare(String(b.id));
+    });
+
+    const availableTagsMap = new Map();
+    sortedUserTags.forEach(tag => {
+        if (tag?.id && !availableTagsMap.has(tag.id)) {
+            availableTagsMap.set(tag.id, {
+                id: tag.id,
+                name: tag.name,
+                color: tag.color
+            });
+        }
+    });
+    userEvents.forEach(event => {
+        (event.tags || []).forEach(tag => {
+            if (tag?.id && !availableTagsMap.has(tag.id)) {
+                availableTagsMap.set(tag.id, {
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color
+                });
+            }
+        });
+    });
+
+    const availableTags = Array.from(availableTagsMap.values());
+
+    const allEvents = [...userEvents, ...holidayEvents];
+
+    const filteredEvents = selectedTagIds.length === 0
+        ? allEvents
+        : allEvents.filter(event => (event.tags || []).some(tag => selectedTagIds.includes(tag?.id)));
 
     const getEventsForDay = (fullDate) => {
         const targetTime = new Date(fullDate.getFullYear(), fullDate.getMonth(), fullDate.getDate()).getTime();
-        return allEvents.filter(event => {
+        return filteredEvents.filter(event => {
             const startDate = new Date(event.startDate);
             const endDate = new Date(event.endDate);
             const startTime = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
@@ -231,6 +290,18 @@ function CalendarGrid({ searchedEvent }) {
                 user={user}
                 onUpdate={fetchCalendarData}
             />
+
+            {(availableTags.length > 0 || selectedTagIds.length > 0) && (
+                <div>
+                    <span>Filter by tags: </span>
+                    {availableTags.map(tag => (
+                        <label key={tag.id}>
+                            <input type="checkbox" checked={selectedTagIds.includes(tag.id)} onChange={() => handleTagToggle(tag.id)}/>
+                            <span style={{backgroundColor: tag.color }}>{tag.name}</span>
+                        </label>
+                    ))}
+                </div>
+            )}
 
             <div>
                 <button onClick={() => { setViewMode('week'); setSelectedDate(null); setViewingEvent(null); setEditingEvent(null); }}>Week</button>
