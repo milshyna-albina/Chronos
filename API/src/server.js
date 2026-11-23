@@ -13,6 +13,7 @@ const calendarRoutes = require('./routes/calendarRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const holidayRoutes = require('./routes/holidayRoutes');
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/api/calendars', calendarRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/holidays', holidayRoutes);
 
 async function start() {
   await initDB();

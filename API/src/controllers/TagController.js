@@ -9,7 +9,7 @@ class TagController {
         tags: tags
       });
     } catch (error) {
-      console.error('[TagController.getAll]:', error.message);
+      console.error('[TagController.getTags]:', error.message);
       res.status(500).json({
         message: 'Internal server error.'
       });

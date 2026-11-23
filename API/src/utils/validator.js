@@ -1,3 +1,11 @@
+const VALID_COUNTRY_CODES = new Set([
+  'AM', 'AR', 'AT', 'AU', 'BE', 'BG', 'BO', 'BR', 'BY', 'CA', 'CH', 'CO', 'CY',
+  'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'GT', 'HR', 'HU', 'IE',
+  'IN', 'IS', 'IT', 'JP', 'KE', 'KR', 'KZ', 'LI', 'LT', 'LU', 'LV', 'MA', 'MT',
+  'MX', 'NG', 'NL', 'NO', 'NZ', 'PA', 'PE', 'PH', 'PL', 'PT', 'RO', 'RS', 'SE',
+  'SG', 'SI', 'SK', 'SM', 'TH', 'TR', 'UA', 'US', 'ZA'
+]);
+
 const isLoginValid = (login) => {
   if (!login || typeof login !== 'string') {
     return false;
@@ -74,6 +82,11 @@ const isChannelValid = (channel) => {
   return allowedWrapper(channel, ['none', 'email', 'in-app', 'both']);
 };
 
+const isCountryCodeValid = (code) => {
+  return typeof code === 'string'
+    && VALID_COUNTRY_CODES.has(code.trim().toUpperCase());
+};
+
 const validateRecurrence = (recurrence, startDate) => {
   if (!recurrence || recurrence.frequency === 'none') {
     return { isValid: true };
@@ -131,6 +144,24 @@ const validateRecurrence = (recurrence, startDate) => {
   return { isValid: true };
 };
 
+const isValidYear = (year) => {
+  if (!year) {
+    return false;
+  }
+  if (typeof year === 'string') {
+    const trimmed = year.trim();
+    if (!/^\d{4}$/.test(trimmed)) {
+      return false;
+    }
+    const parsed = Number(trimmed);
+    return Number.isInteger(parsed) && parsed > 0;
+  }
+  if (typeof year === 'number') {
+    return Number.isInteger(year) && year > 0;
+  }
+  return false;
+};
+
 module.exports = {
   isLoginValid,
   isEmailValid,
@@ -143,5 +174,7 @@ module.exports = {
   isTypeValid,
   isActionValid,
   isChannelValid,
-  validateRecurrence
+  isCountryCodeValid,
+  validateRecurrence,
+  isValidYear
 };
