@@ -7,7 +7,8 @@ const Calendar = require('../models/Calendar');
 const {
   isLoginValid,
   isEmailValid,
-  isPasswordValid
+  isPasswordValid,
+  isCountryCodeValid
 } = require('../utils/validator');
 const {
   sendConfirmationEmail,
@@ -19,7 +20,7 @@ class AuthController {
     let newUser = null;
 
     try {
-      const { login, email, password, password_confirmation } = req.body;
+      const { login, email, password, password_confirmation, country } = req.body;
 
       if (!login) {
         return res.status(400).json({
@@ -68,13 +69,16 @@ class AuthController {
         });
       }
 
+      const countryCode = country ? String(country).trim().toUpperCase() : '';
+      const userCountry = isCountryCodeValid(countryCode) ? countryCode : 'UA';
       const hashedPassword = await bcrypt.hash(password, 10);
 
       newUser = await User.create({
         login,
         email,
         passwordHash: hashedPassword,
-        isVerified: false
+        isVerified: false,
+        country: userCountry
       });
 
       const code = crypto.randomInt(100000, 1000000).toString();
@@ -165,7 +169,8 @@ class AuthController {
           id: user._id,
           login: user.login,
           email: user.email,
-          avatarPath: user.avatarPath
+          avatarPath: user.avatarPath,
+          country: user.country
         },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
@@ -179,7 +184,8 @@ class AuthController {
           id: user._id,
           login: user.login,
           email: user.email,
-          avatarPath: user.avatarPath
+          avatarPath: user.avatarPath,
+          country: user.country
         }
       });
     } catch (error) {
@@ -404,7 +410,8 @@ class AuthController {
           login: req.user.login,
           email: req.user.email,
           avatarPath: req.user.avatarPath,
-          isVerified: req.user.isVerified
+          isVerified: req.user.isVerified,
+          country: req.user.country
         }
       });
     } catch (error) {

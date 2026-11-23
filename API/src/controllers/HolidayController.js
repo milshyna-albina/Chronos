@@ -4,7 +4,7 @@ const { isCountryCodeValid, isValidYear } = require('../utils/validator');
 class HolidayController {
   async getHolidays(req, res) {
     try {
-      const { year, country } = req.body;
+      const { year, country } = req.query;
 
       if (year === undefined || year === null || year === '') {
         return res.status(400).json({
@@ -17,7 +17,7 @@ class HolidayController {
         });
       }
       const normalizedYear = typeof year === 'string' ? Number(year.trim()) : year;
-      const targetCountry = country ? String(country).trim().toUpperCase() : 'UA';
+      const targetCountry = country ? String(country).trim().toUpperCase() : (req.user?.country || 'UA');
 
       if (!isCountryCodeValid(targetCountry)) {
         return res.status(400).json({

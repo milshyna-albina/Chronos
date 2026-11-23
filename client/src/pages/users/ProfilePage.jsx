@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../../context/AuthContext.js';
 import { updateAvatar, updateUser, deleteUser } from '../../services/userService.js';
 import { getAvatarUrl } from '../../utils/avatar.js';
+import { COUNTRIES } from '../../utils/countries.js';
 
 function ProfilePage() {
     const { user, login, logout } = useAuthContext();
     const navigate = useNavigate();
     const [userLogin, setUserLogin] = useState(user?.login || '');
     const [email, setEmail] = useState(user?.email || '');
+    const [country, setCountry] = useState(user?.country || 'UA');
     const [avatar, setAvatar] = useState(null);
     const [error, setError] = useState('');
 
@@ -19,7 +21,8 @@ function ProfilePage() {
         try {
             const result = await updateUser({
                 login: userLogin,
-                email
+                email,
+                country
             });
             let updatedUser = result.user;
             if (avatar) {
@@ -54,6 +57,7 @@ function ProfilePage() {
                     <img className="avatar" src={getAvatarUrl(user.avatarPath)} alt="Avatar" width="100" height="100" />
                     <p>Login: {user.login}</p>
                     <p>Email: {user.email}</p>
+                    <p>Country: {user.country || 'UA'}</p>
                 </div>
             )}
 
@@ -68,6 +72,17 @@ function ProfilePage() {
                 <div>
                     <label>Email</label>
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+
+                <div>
+                    <label>Country</label>
+                    <select value={country} onChange={(e) => setCountry(e.target.value)}>
+                        {COUNTRIES.map((c) => (
+                            <option key={c.code} value={c.code}>
+                                {c.name} ({c.code})
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div>
