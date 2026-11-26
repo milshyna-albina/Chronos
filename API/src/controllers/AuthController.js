@@ -15,6 +15,8 @@ const {
   sendResetPasswordEmail
 } = require('../utils/mail');
 
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
 class AuthController {
   async register(req, res) {
     let newUser = null;
@@ -273,6 +275,11 @@ class AuthController {
         });
       }
 
+      const canSend = await checkTokenCooldown(res, user._id, 'email');
+      if (!canSend) {
+        return;
+      }
+
       const code = crypto.randomInt(100000, 1000000).toString();
       const codeHash = crypto.createHash('sha256').update(code).digest('hex');
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -289,7 +296,8 @@ class AuthController {
       await sendConfirmationEmail(email, code);
 
       res.status(200).json({
-        message: 'A new confirmation code has been sent.'
+        message: 'A new confirmation code has been sent.',
+        retryAfter: Math.ceil(RESEND_COOLDOWN_MS / 1000)
       });
     } catch (error) {
       console.error('[AuthController.resendConfirmationCode]:', error.message);
@@ -321,6 +329,11 @@ class AuthController {
         });
       }
 
+      const canSend = await checkTokenCooldown(res, user._id, 'password');
+      if (!canSend) {
+        return;
+      }
+
       const token = crypto.randomUUID();
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
@@ -337,7 +350,8 @@ class AuthController {
       await sendResetPasswordEmail(email, token);
 
       res.status(200).json({
-        message: 'Password reset link has been sent.'
+        message: 'Password reset link has been sent.',
+        retryAfter: Math.ceil(RESEND_COOLDOWN_MS / 1000)
       });
     } catch (error) {
       console.error('[AuthController.passwordResetRequest]:', error.message);
@@ -421,6 +435,28 @@ class AuthController {
       });
     }
   }
+}
+
+async function checkTokenCooldown(res, userId, type, cooldownMs = RESEND_COOLDOWN_MS) {
+  const lastToken = await Token.findOne({
+    userId: userId,
+    type: type
+  }).sort({ createdAt: -1 });
+
+  if (lastToken?.createdAt) {
+    const elapsedMs = Date.now() - new Date(lastToken.createdAt).getTime();
+    if (elapsedMs < cooldownMs) {
+      const retryAfter = Math.ceil((cooldownMs - elapsedMs) / 1000);
+      res.set('Retry-After', String(retryAfter));
+      res.status(429).json({
+        message: `Please wait ${retryAfter} seconds before requesting again.`,
+        retryAfter: retryAfter
+      });
+      return false;
+    }
+  }
+
+  return true;
 }
 
 module.exports = new AuthController();
