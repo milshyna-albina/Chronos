@@ -79,7 +79,7 @@ function CalendarGrid({ searchedEvent }) {
     }, [currentTimestamp, viewMode]);
 
     useEffect(() => {
-        fetchCalendarData();
+        void fetchCalendarData();
     }, [fetchCalendarData]);
 
     useEffect(() => {
@@ -114,11 +114,34 @@ function CalendarGrid({ searchedEvent }) {
             },
             permissions
         );
-        setCurrentDate(new Date(foundEvent.startDate));
-        setSelectedDate(null);
-        setEditingEvent(null);
-        setViewingEvent(prepared);
+        Promise.resolve().then(() => {
+            setCurrentDate(new Date(foundEvent.startDate));
+            setSelectedDate(null);
+            setEditingEvent(null);
+            setViewingEvent(prepared);
+        });
     }, [searchedEvent, calendars, user]);
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.repeat || e.ctrlKey || e.metaKey || e.shiftKey) return;
+
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) {
+                return;
+            }
+
+            if (e.altKey && e.code === 'KeyC' && !selectedDate && !editingEvent) {
+                e.preventDefault();
+                setViewingEvent(null);
+                setEditingEvent(null);
+                setSelectedDate(new Date());
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedDate, editingEvent]);
 
     const handlePrev = () => {
         if (viewMode === 'week') {
@@ -169,7 +192,7 @@ function CalendarGrid({ searchedEvent }) {
         try {
             await deleteEvent(calendarId, eventId, deleteData);
             setViewingEvent(null);
-            fetchCalendarData();
+            await fetchCalendarData();
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to delete event');
         }
@@ -338,7 +361,7 @@ function CalendarGrid({ searchedEvent }) {
                     onSuccess={() => {
                         setSelectedDate(null);
                         setEditingEvent(null);
-                        fetchCalendarData();
+                        void fetchCalendarData();
                     }}
                     onCancel={() => {
                         setSelectedDate(null);

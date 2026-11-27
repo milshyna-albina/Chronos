@@ -1,14 +1,25 @@
-import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { confirmEmail, resendCode } from '../../services/authService.js';
 
 function ConfirmEmailPage() {
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
+    const [resendCooldown, setResendCooldown] = useState(0);
     const navigate = useNavigate();
     const location = useLocation();
     const email = location.state?.email;
+
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+
+        const timer = setTimeout(() => {
+            setResendCooldown(prev => prev - 1);
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [resendCooldown]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -42,10 +53,16 @@ function ConfirmEmailPage() {
 
             if (result.message) {
                 setMessage('A new confirmation code has been sent.');
+                setResendCooldown(result.retryAfter || 60);
             } else {
                 setError('Failed to resend confirmation code.');
             }
         } catch (error) {
+            const retryAfter = error.response?.data?.retryAfter;
+            if (error.response?.status === 429 && retryAfter) {
+                setResendCooldown(retryAfter);
+                return;
+            }
             setError(error.response?.data?.message || 'Server error');
         }
     };
@@ -61,7 +78,9 @@ function ConfirmEmailPage() {
 
                 <button type="submit">Confirm</button>
                 <br/>
-                <button type="button" onClick={handleResend}>Resend code</button>
+                <button type="button" onClick={handleResend} disabled={resendCooldown > 0}>
+                    {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend code'}
+                </button>
             </form>
 
             {error && <p className="error-message">{error}</p>}
